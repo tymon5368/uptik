@@ -133,7 +133,7 @@ func (s *Storage) Load() (domain.Settings, error) {
 		VideoFolder:       "/home/arch/Downloads/Movie Nights - Uploads from Movie Nights",
 		ChromeUserDataDir: "/home/arch/.config/google-chrome-mcp",
 		ChromePath:        "/opt/google/chrome/chrome",
-		DefaultTag:        "#phimbop",
+		DefaultTag:        "",
 		GoldenHours:           []string{"11:30", "18:30", "21:30"},
 		ScheduleGoldenHours:   []string{"11:30", "18:30", "21:30"},
 		PublishNowGoldenHours: []string{"07:30", "11:30", "14:30", "18:30", "21:30"},

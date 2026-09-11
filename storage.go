@@ -24,7 +24,7 @@ func GetDefaultSettings() Settings {
 		VideoFolder:       DefaultFolder,
 		ChromeUserDataDir: DefaultUserData,
 		ChromePath:        DefaultChrome,
-		DefaultTag:        "#phimbop",
+		DefaultTag:        "",
 		GoldenHours:           []string{"11:30", "18:30", "21:30"},
 		ScheduleGoldenHours:   []string{"11:30", "18:30", "21:30"},
 		PublishNowGoldenHours: []string{"07:30", "11:30", "14:30", "18:30", "21:30"},
