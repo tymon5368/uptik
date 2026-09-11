@@ -509,6 +509,16 @@
     videoError = false;
   }
 
+  async function handleOpenInDefaultPlayer(path: string) {
+    if (!path) return;
+    try {
+      await OpenInDefaultPlayer(path);
+    } catch (err) {
+      console.error('Failed to open video in external player:', err);
+      addLog('error', `Failed to launch system player: ${err}`);
+    }
+  }
+
   function getSlotLabel(timeStr: string) {
     if (!timeStr) return '';
     const parts = timeStr.trim().split(':');
@@ -613,13 +623,13 @@
 
     const channels = settings.enabledChannels && settings.enabledChannels.length > 0
       ? settings.enabledChannels
-      : ['tiktok'];
+      : ['tiktok', 'youtube'];
     const channelNames = channels
       .map(c => platforms.find(p => p.id === c)?.name || c)
       .join(', ');
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     const targetVideo: VideoItem = {
@@ -2542,7 +2552,7 @@
                     type="button"
                     onclick={() => {
                       if (playingVideo?.fullPath) {
-                        OpenInDefaultPlayer(playingVideo.fullPath);
+                        handleOpenInDefaultPlayer(playingVideo.fullPath);
                       }
                     }}
                     class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#E50914] hover:bg-[#F40612] text-white rounded-lg transition cursor-pointer shadow active:scale-95"
@@ -2582,7 +2592,7 @@
                   type="button"
                   onclick={() => {
                     if (playingVideo?.fullPath) {
-                      OpenInDefaultPlayer(playingVideo.fullPath);
+                      handleOpenInDefaultPlayer(playingVideo.fullPath);
                     }
                   }}
                   class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 hover:text-white rounded-lg border border-neutral-700 transition cursor-pointer"
