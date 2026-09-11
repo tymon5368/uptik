@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -275,6 +276,54 @@ func (a *App) OpenInDefaultPlayer(videoPath string) error {
 	return exec.Command("xdg-open", resolvedPath).Start()
 }
 
+type streamTokenEntry struct {
+	path      string
+	expiresAt time.Time
+}
+
+var (
+	streamTokens   = make(map[string]streamTokenEntry)
+	streamTokensMu sync.RWMutex
+)
+
+func generateStreamToken(videoPath string) (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	token := hex.EncodeToString(b)
+
+	streamTokensMu.Lock()
+	defer streamTokensMu.Unlock()
+
+	now := time.Now()
+	for k, v := range streamTokens {
+		if now.After(v.expiresAt) {
+			delete(streamTokens, k)
+		}
+	}
+
+	streamTokens[token] = streamTokenEntry{
+		path:      videoPath,
+		expiresAt: now.Add(2 * time.Hour),
+	}
+	return token, nil
+}
+
+func getStreamPath(token string) (string, bool) {
+	if token == "" {
+		return "", false
+	}
+	streamTokensMu.RLock()
+	entry, ok := streamTokens[token]
+	streamTokensMu.RUnlock()
+
+	if !ok || time.Now().After(entry.expiresAt) {
+		return "", false
+	}
+	return entry.path, true
+}
+
 func (a *App) startVideoStreamServer() {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -285,7 +334,10 @@ func (a *App) startVideoStreamServer() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/video/stream", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if origin != "" && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") || strings.HasPrefix(origin, "wails://")) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "*")
 		if r.Method == http.MethodOptions {
@@ -293,15 +345,11 @@ func (a *App) startVideoStreamServer() {
 			return
 		}
 
-		targetPath := r.URL.Query().Get("path")
-		if targetPath == "" {
-			http.Error(w, "missing path parameter", http.StatusBadRequest)
+		token := r.URL.Query().Get("token")
+		resolvedPath, ok := getStreamPath(token)
+		if !ok {
+			http.Error(w, "invalid or expired token", http.StatusForbidden)
 			return
-		}
-
-		resolvedPath, err := filepath.EvalSymlinks(targetPath)
-		if err != nil {
-			resolvedPath = filepath.Clean(targetPath)
 		}
 
 		info, err := os.Stat(resolvedPath)
@@ -310,15 +358,8 @@ func (a *App) startVideoStreamServer() {
 			return
 		}
 
-		ext := strings.ToLower(filepath.Ext(resolvedPath))
-		switch ext {
-		case ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi":
-			// valid video
-		default:
-			http.Error(w, "unsupported video format", http.StatusForbidden)
-			return
-		}
-
+		// http.ServeFile natively supports HTTP Range headers (206 Partial Content)
+		// allowing instant seeking without buffering the entire file into memory
 		http.ServeFile(w, r, resolvedPath)
 	})
 
@@ -328,52 +369,43 @@ func (a *App) startVideoStreamServer() {
 	}()
 }
 
-// GetVideoStreamURL returns a direct loopback streaming URL for the video file
+// GetVideoStreamURL generates a secure ephemeral token and returns a direct loopback streaming URL
 func (a *App) GetVideoStreamURL(videoPath string) string {
-	if a.streamPort == 0 {
-		return fmt.Sprintf("/api/video/stream?path=%s", url.QueryEscape(videoPath))
+	if videoPath == "" {
+		return ""
 	}
-	return fmt.Sprintf("http://127.0.0.1:%d/api/video/stream?path=%s", a.streamPort, url.QueryEscape(videoPath))
-}
 
-// VideoAssetHandler streams local video files for the built-in HTML5 player
-func (a *App) VideoAssetHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/video/stream") {
-			targetPath := r.URL.Query().Get("path")
-			if targetPath == "" {
-				http.Error(w, "missing path parameter", http.StatusBadRequest)
-				return
-			}
+	resolvedPath, err := filepath.EvalSymlinks(videoPath)
+	if err != nil {
+		resolvedPath = filepath.Clean(videoPath)
+	}
+	resolvedPath, err = filepath.Abs(resolvedPath)
+	if err != nil {
+		return ""
+	}
 
-			resolvedPath, err := filepath.EvalSymlinks(targetPath)
-			if err != nil {
-				resolvedPath = filepath.Clean(targetPath)
-			}
+	info, err := os.Stat(resolvedPath)
+	if err != nil || info.IsDir() {
+		return ""
+	}
 
-			info, err := os.Stat(resolvedPath)
-			if err != nil || info.IsDir() {
-				http.Error(w, "video file not found", http.StatusNotFound)
-				return
-			}
+	ext := strings.ToLower(filepath.Ext(resolvedPath))
+	switch ext {
+	case ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi":
+		// valid video format
+	default:
+		return ""
+	}
 
-			ext := strings.ToLower(filepath.Ext(resolvedPath))
-			switch ext {
-			case ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi":
-				// valid video
-			default:
-				http.Error(w, "unsupported video format", http.StatusForbidden)
-				return
-			}
+	token, err := generateStreamToken(resolvedPath)
+	if err != nil {
+		return ""
+	}
 
-			// http.ServeFile natively supports HTTP Range headers (206 Partial Content)
-			// allowing instant seeking without buffering the entire file into memory
-			http.ServeFile(w, r, resolvedPath)
-			return
-		}
-
-		http.NotFound(w, r)
-	})
+	if a.streamPort == 0 {
+		return fmt.Sprintf("/api/video/stream?token=%s", token)
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d/api/video/stream?token=%s", a.streamPort, token)
 }
 
 func (a *App) connectOrLaunchBrowser() error {

@@ -69,8 +69,7 @@ func main() {
 		MinHeight:   700,
 		StartHidden: startHidden,
 		AssetServer: &assetserver.Options{
-			Assets:  assets,
-			Handler: app.VideoAssetHandler(),
+			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 20, G: 20, B: 20, A: 255},
 		OnStartup:        app.startup,

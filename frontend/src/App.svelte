@@ -484,14 +484,21 @@
   }
 
   async function openVideoPlayer(video: VideoItem) {
+    const targetPath = video.fullPath;
     playingVideo = video;
     videoError = false;
     isVideoPlayerOpen = true;
     try {
-      videoStreamUrl = await GetVideoStreamURL(video.fullPath);
+      const url = await GetVideoStreamURL(targetPath);
+      if (playingVideo?.fullPath === targetPath && isVideoPlayerOpen) {
+        videoStreamUrl = url;
+      }
     } catch (err) {
       console.error('Failed to get video stream URL:', err);
-      videoStreamUrl = `/api/video/stream?path=${encodeURIComponent(video.fullPath)}`;
+      if (playingVideo?.fullPath === targetPath && isVideoPlayerOpen) {
+        videoStreamUrl = '';
+        videoError = true;
+      }
     }
   }
 
