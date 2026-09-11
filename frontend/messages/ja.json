@@ -182,7 +182,7 @@
   "scheduler_btn_stop": "自動停止",
   "scheduler_next_label": "次回:",
   "scheduler_time_reached": "指定時刻になりました！",
-  "matrix_slots_count": "{count}/3 スロット",
+  "matrix_slots_count": "{count} スロット",
   "matrix_status_posted": "投稿済み",
   "matrix_status_ready": "準備完了",
   "matrix_status_empty": "空き",

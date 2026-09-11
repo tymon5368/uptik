@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -106,7 +107,8 @@ func TestSeparateGoldenHoursSettings(t *testing.T) {
 		t.Errorf("expected 5 publish_now golden hours, got %d", len(st.PublishNowGoldenHours))
 	}
 
-	app := NewApp()
+	tmpDir := t.TempDir()
+	app := NewAppWithDBPath(filepath.Join(tmpDir, "test_uptik.db"))
 	app.settings = st
 
 	// Update schedule hours

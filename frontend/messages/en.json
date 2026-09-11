@@ -182,7 +182,7 @@
   "scheduler_btn_stop": "STOP AUTO",
   "scheduler_next_label": "Next:",
   "scheduler_time_reached": "Time slot reached!",
-  "matrix_slots_count": "{count}/3 slots",
+  "matrix_slots_count": "{count} slots",
   "matrix_status_posted": "Posted",
   "matrix_status_ready": "Ready",
   "matrix_status_empty": "Empty",

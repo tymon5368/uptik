@@ -160,6 +160,11 @@ func (s *Storage) Load() (domain.Settings, error) {
 		return defaultSettings, err
 	}
 
+	var rawFields map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(val), &rawFields)
+	_, hasSchedule := rawFields["scheduleGoldenHours"]
+	_, hasPublishNow := rawFields["publishNowGoldenHours"]
+
 	loaded := defaultSettings
 	if err := json.Unmarshal([]byte(val), &loaded); err != nil {
 		return defaultSettings, nil
@@ -177,14 +182,14 @@ func (s *Storage) Load() (domain.Settings, error) {
 		loaded.Locale = "en"
 	}
 
-	if len(loaded.ScheduleGoldenHours) == 0 {
+	if !hasSchedule {
 		if len(loaded.GoldenHours) > 0 && loaded.PublishMode == domain.PublishModeSchedule {
 			loaded.ScheduleGoldenHours = loaded.GoldenHours
 		} else {
 			loaded.ScheduleGoldenHours = []string{"11:30", "18:30", "21:30"}
 		}
 	}
-	if len(loaded.PublishNowGoldenHours) == 0 {
+	if !hasPublishNow {
 		if len(loaded.GoldenHours) > 0 && loaded.PublishMode == domain.PublishModePublishNow {
 			loaded.PublishNowGoldenHours = loaded.GoldenHours
 		} else {

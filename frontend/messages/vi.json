@@ -182,7 +182,7 @@
   "scheduler_btn_stop": "DỪNG TỰ ĐỘNG",
   "scheduler_next_label": "Khung tiếp theo:",
   "scheduler_time_reached": "Đến khung giờ!",
-  "matrix_slots_count": "{count}/3 khung giờ",
+  "matrix_slots_count": "{count} khung giờ",
   "matrix_status_posted": "Đã Đăng",
   "matrix_status_ready": "Sẵn Sàng",
   "matrix_status_empty": "Trống",

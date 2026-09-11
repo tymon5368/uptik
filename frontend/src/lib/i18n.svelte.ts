@@ -33,17 +33,22 @@ class I18nState {
     } catch {
       this.current = 'en';
     }
+    this.syncDocument(this.current);
+  }
+
+  private syncDocument(locale: SupportedLocale) {
+    const meta = LOCALES_METADATA[locale] || LOCALES_METADATA.en;
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = locale;
+      document.documentElement.dir = meta.dir;
+    }
   }
 
   set(locale: SupportedLocale) {
     if (locale in LOCALES_METADATA) {
       setLocale(locale as any, { reload: false });
       this.current = locale;
-      const meta = LOCALES_METADATA[locale];
-      if (typeof document !== 'undefined') {
-        document.documentElement.lang = locale;
-        document.documentElement.dir = meta.dir;
-      }
+      this.syncDocument(locale);
     }
   }
 

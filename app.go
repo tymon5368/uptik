@@ -49,7 +49,10 @@ type App struct {
 }
 
 func NewApp() *App {
-	dbPath := filepath.Join(".", "uptik.db")
+	return NewAppWithDBPath(filepath.Join(".", "uptik.db"))
+}
+
+func NewAppWithDBPath(dbPath string) *App {
 	storage, err := sqlite.NewStorage(dbPath)
 	if err != nil {
 		fmt.Printf("Warning: failed to open SQLite: %v\n", err)
@@ -649,9 +652,17 @@ func (a *App) ToggleAutoUpload(enabled bool) error {
 
 // SetPublishMode changes between schedule and publish_now modes
 func (a *App) SetPublishMode(mode string) error {
+	if mode == "" {
+		mode = string(domain.PublishModeSchedule)
+	}
+	pMode := domain.PublishMode(mode)
+	if pMode != domain.PublishModeSchedule && pMode != domain.PublishModePublishNow {
+		return fmt.Errorf("unsupported publish mode: %s", mode)
+	}
+
 	a.mu.Lock()
 	s := a.settings
-	s.PublishMode = domain.PublishMode(mode)
+	s.PublishMode = pMode
 	if s.PublishMode == domain.PublishModePublishNow {
 		if len(s.PublishNowGoldenHours) > 0 {
 			s.GoldenHours = s.PublishNowGoldenHours
@@ -699,10 +710,15 @@ func (a *App) UpdateGoldenHours(hours []string) error {
 
 // UpdateModeGoldenHours updates hours specifically for the designated publish mode
 func (a *App) UpdateModeGoldenHours(mode string, hours []string) error {
+	pMode := domain.PublishMode(mode)
+	if pMode != domain.PublishModeSchedule && pMode != domain.PublishModePublishNow {
+		return fmt.Errorf("unsupported publish mode: %s", mode)
+	}
+
 	valid := domain.ValidateAndSortHours(hours)
 	a.mu.Lock()
 	s := a.settings
-	if domain.PublishMode(mode) == domain.PublishModePublishNow {
+	if pMode == domain.PublishModePublishNow {
 		s.PublishNowGoldenHours = valid
 		if s.PublishMode == domain.PublishModePublishNow {
 			s.GoldenHours = valid

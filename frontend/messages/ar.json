@@ -182,7 +182,7 @@
   "scheduler_btn_stop": "إيقاف تلقائي",
   "scheduler_next_label": "التالي:",
   "scheduler_time_reached": "حان الموعد المحدد!",
-  "matrix_slots_count": "{count}/3 خانات",
+  "matrix_slots_count": "{count} خانات",
   "matrix_status_posted": "تم النشر",
   "matrix_status_ready": "جاهز",
   "matrix_status_empty": "فارغ",

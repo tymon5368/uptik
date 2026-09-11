@@ -114,3 +114,29 @@ func TestSQLiteStorage(t *testing.T) {
 		t.Fatalf("ClearCompleted failed: %v", err)
 	}
 }
+
+func TestLegacySettingsMigration(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "legacy_test.db")
+
+	storage, err := NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create SQLite storage: %v", err)
+	}
+	defer storage.Close()
+
+	// Insert legacy settings JSON with only "goldenHours" and no "scheduleGoldenHours"
+	legacyJSON := `{"videoFolder":"/videos","goldenHours":["08:00","14:00"],"publishMode":"schedule"}`
+	_, err = storage.db.Exec(`INSERT INTO settings(key, value) VALUES('app_settings', ?)`, legacyJSON)
+	if err != nil {
+		t.Fatalf("Failed to insert legacy settings: %v", err)
+	}
+
+	loaded, err := storage.Load()
+	if err != nil {
+		t.Fatalf("Failed to load legacy settings: %v", err)
+	}
+	if len(loaded.ScheduleGoldenHours) != 2 || loaded.ScheduleGoldenHours[0] != "08:00" || loaded.ScheduleGoldenHours[1] != "14:00" {
+		t.Errorf("Expected migrated ScheduleGoldenHours to be [08:00, 14:00], got %+v", loaded.ScheduleGoldenHours)
+	}
+}

@@ -11,6 +11,7 @@
 
   let isOpen = $state<boolean>(false);
   let dropdownRef: HTMLDivElement | null = null;
+  let triggerBtnRef: HTMLButtonElement | null = null;
 
   function selectLocale(code: SupportedLocale) {
     i18n.set(code);
@@ -23,6 +24,7 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       isOpen = false;
+      triggerBtnRef?.focus();
     }
   }
 
@@ -38,6 +40,7 @@
 
 <div class="relative inline-block text-left" bind:this={dropdownRef}>
   <button
+    bind:this={triggerBtnRef}
     type="button"
     onclick={() => (isOpen = !isOpen)}
     class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 text-xs font-medium text-neutral-300 hover:text-white transition shadow-sm cursor-pointer"

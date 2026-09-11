@@ -182,7 +182,7 @@
   "scheduler_btn_stop": "ARRÊTER AUTO",
   "scheduler_next_label": "Suivant :",
   "scheduler_time_reached": "Créneau atteint !",
-  "matrix_slots_count": "{count}/3 créneaux",
+  "matrix_slots_count": "{count} créneaux",
   "matrix_status_posted": "Publié",
   "matrix_status_ready": "Prêt",
   "matrix_status_empty": "Vide",

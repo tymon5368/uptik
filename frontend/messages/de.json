@@ -182,7 +182,7 @@
   "scheduler_btn_stop": "AUTO STOPPEN",
   "scheduler_next_label": "Nächstes:",
   "scheduler_time_reached": "Zeitfenster erreicht!",
-  "matrix_slots_count": "{count}/3 Slots",
+  "matrix_slots_count": "{count} Slots",
   "matrix_status_posted": "Veröffentlicht",
   "matrix_status_ready": "Bereit",
   "matrix_status_empty": "Leer",
