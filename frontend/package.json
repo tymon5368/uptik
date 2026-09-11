@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "compile:i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
+    "check": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.25.1",
