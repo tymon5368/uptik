@@ -27,6 +27,11 @@ func TestCleanVideoTitle(t *testing.T) {
 			tag:      "#shorts",
 			expected: "Already has tag #shorts",
 		},
+		{
+			input:    "Clean title without any tag added (1080p).mp4",
+			tag:      "",
+			expected: "Clean title without any tag added",
+		},
 	}
 
 	for _, c := range cases {
