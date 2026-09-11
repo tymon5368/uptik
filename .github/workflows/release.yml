@@ -168,13 +168,46 @@ jobs:
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
           PKG_NAME="uptik-${VERSION}-linux-amd64"
+          mkdir -p artifacts
+
+          # 1. Standalone Tarball (for manual installation & in-app self-updater)
           mkdir -p "dist-pkg/${PKG_NAME}"
           cp build/bin/uptik "dist-pkg/${PKG_NAME}/"
           cp uptik.desktop "dist-pkg/${PKG_NAME}/"
           cp build/appicon.png "dist-pkg/${PKG_NAME}/uptik.png"
           (cd dist-pkg && tar -czvf "../${PKG_NAME}.tar.gz" "${PKG_NAME}")
-          mkdir -p artifacts
           mv "${PKG_NAME}.tar.gz" artifacts/
+
+          # 2. Native Debian Package (.deb for Ubuntu, Debian, Mint, Pop!_OS)
+          DEB_DIR="deb-pkg"
+          mkdir -p "${DEB_DIR}/DEBIAN"
+          mkdir -p "${DEB_DIR}/usr/bin"
+          mkdir -p "${DEB_DIR}/usr/share/applications"
+          mkdir -p "${DEB_DIR}/usr/share/icons/hicolor/512x512/apps"
+
+          cp build/bin/uptik "${DEB_DIR}/usr/bin/uptik"
+          chmod 755 "${DEB_DIR}/usr/bin/uptik"
+          cp uptik.desktop "${DEB_DIR}/usr/share/applications/uptik.desktop"
+          chmod 644 "${DEB_DIR}/usr/share/applications/uptik.desktop"
+          cp build/appicon.png "${DEB_DIR}/usr/share/icons/hicolor/512x512/apps/uptik.png"
+          chmod 644 "${DEB_DIR}/usr/share/icons/hicolor/512x512/apps/uptik.png"
+
+          cat << 'EOF' > "${DEB_DIR}/DEBIAN/control"
+Package: uptik
+Version: REPLACE_VERSION
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: UpTik <noreply@uptik.app>
+Description: TikTok Auto Scheduler & Omnichannel Video Studio
+ UpTik is an omnichannel desktop studio for automated content scheduling
+ across TikTok Studio, YouTube Shorts, and Meta Business Suite.
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libayatana-appindicator3-1
+EOF
+          sed -i "s/REPLACE_VERSION/${VERSION}/g" "${DEB_DIR}/DEBIAN/control"
+
+          dpkg-deb --build "${DEB_DIR}" "artifacts/uptik-${VERSION}-linux-amd64.deb"
+          rm -rf "${DEB_DIR}" dist-pkg
 
       - name: Package Windows Artifacts
         if: runner.os == 'Windows'
@@ -201,7 +234,35 @@ jobs:
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
           mkdir -p artifacts
+
+          # 1. Universal Application Bundle (ZIP for in-app self-updater)
           ditto -c -k --sequesterRsrc --keepParent build/bin/uptik.app "artifacts/uptik-${VERSION}-macos-universal.zip"
+
+          # 2. Apple Disk Image (DMG for standard drag-and-drop installation)
+          mkdir -p dmg-staging
+          cp -R build/bin/uptik.app dmg-staging/
+
+          brew install create-dmg || true
+          if command -v create-dmg &> /dev/null; then
+            create-dmg \
+              --volname "UpTik" \
+              --window-pos 200 120 \
+              --window-size 600 400 \
+              --icon-size 100 \
+              --icon "uptik.app" 160 190 \
+              --hide-extension "uptik.app" \
+              --app-drop-link 440 190 \
+              "artifacts/uptik-${VERSION}-macos-universal.dmg" \
+              "dmg-staging" || true
+          fi
+
+          # Fallback to hdiutil if create-dmg is unavailable or fails
+          if [ ! -f "artifacts/uptik-${VERSION}-macos-universal.dmg" ]; then
+            echo "create-dmg not used or failed, generating DMG via hdiutil..."
+            ln -s /Applications dmg-staging/Applications
+            hdiutil create -volname "UpTik" -srcfolder dmg-staging -ov -format UDZO "artifacts/uptik-${VERSION}-macos-universal.dmg"
+          fi
+          rm -rf dmg-staging
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -264,8 +325,10 @@ jobs:
               - Installer (NSIS Setup): `uptik-${{ steps.meta.outputs.version }}-windows-amd64-setup.exe`
               - Portable ZIP: `uptik-${{ steps.meta.outputs.version }}-windows-amd64-portable.zip`
             - **macOS**:
-              - Universal Application Bundle (Apple Silicon & Intel): `uptik-${{ steps.meta.outputs.version }}-macos-universal.zip`
+              - Apple Disk Image (DMG Installer): `uptik-${{ steps.meta.outputs.version }}-macos-universal.dmg`
+              - Universal Application Bundle (ZIP): `uptik-${{ steps.meta.outputs.version }}-macos-universal.zip`
             - **Linux**:
+              - Debian / Ubuntu Package (.deb): `uptik-${{ steps.meta.outputs.version }}-linux-amd64.deb`
               - Standalone Binary Tarball: `uptik-${{ steps.meta.outputs.version }}-linux-amd64.tar.gz`
             - **Checksum Verification**: `SHA256SUMS.txt`
             
