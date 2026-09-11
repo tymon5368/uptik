@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Videos automatisch den {count} goldenen Zeiten für 30 Tage zuweisen",
   "btn_schedule_multichannel": "ALLE PLANEN ({count})",
   "btn_stop_upload": "STOPPEN",
+  "btn_trigger_now": "1 Video sofort veröffentlichen",
+  "btn_trigger_now_tooltip": "Nächstes Video in der Warteschlange sofort hochladen und veröffentlichen",
+  "btn_upload_now": "Sofort veröffentlichen",
+  "queue_btn_upload_now_tooltip": "Dieses Video sofort auf den aktivierten Kanälen veröffentlichen",
   "uploading_progress": "Upload läuft: {current}/{total}",
   "recovery_banner_detected": "Das System hat {count} unvollständige Upload-Aufträge in der SQLite-Warteschlange gefunden.",
   "recovery_cancel_queue": "Alte Warteschlange löschen",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Gitteransicht",
+  "view_list": "Listen-Detailansicht",
+  "queue_btn_play": "Abspielen",
+  "queue_btn_play_tooltip": "Vorschau dieses Videos",
+  "player_dialog_title": "Videoplayer",
+  "player_open_external": "Im Systemplayer öffnen",
+  "player_unsupported": "Browser unterstützt dieses Videoformat nicht"
 }

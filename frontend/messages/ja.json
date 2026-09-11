@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "今後30日間の{count}枠ゴールデンタイムに自動配置",
   "btn_schedule_multichannel": "一括予約投稿 ({count})",
   "btn_stop_upload": "停止",
+  "btn_trigger_now": "1件を今すぐ投稿",
+  "btn_trigger_now_tooltip": "待機列の次の動画を今すぐアップロードして公開",
+  "btn_upload_now": "今すぐ投稿",
+  "queue_btn_upload_now_tooltip": "この動画を選択したチャンネルに今すぐ公開",
   "uploading_progress": "アップロード中: {current}/{total}",
   "recovery_banner_detected": "前回セッションの未完了タスクが {count} 件検出されました。",
   "recovery_cancel_queue": "古いキューを削除",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "グリッド表示",
+  "view_list": "リスト詳細表示",
+  "queue_btn_play": "再生",
+  "queue_btn_play_tooltip": "この動画をプレビュー",
+  "player_dialog_title": "動画プレーヤー",
+  "player_open_external": "システムプレーヤーで開く",
+  "player_unsupported": "ブラウザはこの動画形式をサポートしていません"
 }

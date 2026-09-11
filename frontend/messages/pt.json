@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Distribuir vídeos em {count} horários nobres ao longo de 30 dias",
   "btn_schedule_multichannel": "AGENDAR TODOS ({count})",
   "btn_stop_upload": "PARAR",
+  "btn_trigger_now": "Publicar 1 vídeo agora",
+  "btn_trigger_now_tooltip": "Carregar e publicar imediatamente o próximo vídeo da fila",
+  "btn_upload_now": "Publicar agora",
+  "queue_btn_upload_now_tooltip": "Publicar este vídeo imediatamente nos canais selecionados",
   "uploading_progress": "Enviando: {current}/{total}",
   "recovery_banner_detected": "O sistema detectou {count} tarefas de upload incompletas na fila SQLite da sessão anterior.",
   "recovery_cancel_queue": "Limpar fila antiga",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Visualização em grade",
+  "view_list": "Visualização em lista detalhada",
+  "queue_btn_play": "Reproduzir",
+  "queue_btn_play_tooltip": "Visualizar este vídeo",
+  "player_dialog_title": "Reprodutor de vídeo",
+  "player_open_external": "Abrir no reprodutor do sistema",
+  "player_unsupported": "O navegador não suporta este formato de vídeo"
 }

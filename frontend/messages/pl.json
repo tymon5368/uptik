@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Automatycznie przydziel wideo do {count} złotych godzin w ciągu 30 dni",
   "btn_schedule_multichannel": "ZAPLANUJ WSZYSTKIE ({count})",
   "btn_stop_upload": "ZATRZYMAJ",
+  "btn_trigger_now": "Opublikuj 1 film teraz",
+  "btn_trigger_now_tooltip": "Natychmiast prześlij i opublikuj następny film z kolejki",
+  "btn_upload_now": "Opublikuj teraz",
+  "queue_btn_upload_now_tooltip": "Natychmiast opublikuj ten film na wybranych kanałach",
   "uploading_progress": "Przesyłanie: {current}/{total}",
   "recovery_banner_detected": "Wykryto {count} niedokończonych zadań przesyłania w kolejce SQLite z poprzedniej sesji.",
   "recovery_cancel_queue": "Wyczyść starą kolejkę",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Widok siatki",
+  "view_list": "Widok listy szczegółowej",
+  "queue_btn_play": "Odtwórz",
+  "queue_btn_play_tooltip": "Podgląd tego wideo",
+  "player_dialog_title": "Odtwarzacz wideo",
+  "player_open_external": "Otwórz w odtwarzaczu systemowym",
+  "player_unsupported": "Przeglądarka nie obsługuje tego formatu wideo"
 }

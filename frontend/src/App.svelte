@@ -41,7 +41,9 @@
     RotateCcw,
     CheckCircle,
     Languages,
-    ChevronDown
+    ChevronDown,
+    LayoutGrid,
+    List
   } from 'lucide-svelte';
 
   import {
@@ -55,6 +57,8 @@
     GetHistory,
     SelectFolder,
     OpenInFileManager,
+    OpenInDefaultPlayer,
+    GetVideoStreamURL,
     OpenChromeForLogin,
     OpenPlatformLogin,
     CheckPlatformLogin,
@@ -146,6 +150,7 @@
   let history = $state<HistoryRecord[]>([]);
   let logs = $state<LogEntry[]>([]);
   let isUploading = $state<boolean>(false);
+  let isTriggeringNow = $state<boolean>(false);
   let progress = $state<UploadProgress | null>(null);
   let searchQuery = $state<string>('');
   let statusFilter = $state<string>('all');
@@ -161,6 +166,15 @@
   let editTitle = $state<string>('');
   let editDate = $state<string>('');
   let editTime = $state<string>('');
+
+  // Video Player Modal State
+  let playingVideo = $state<VideoItem | null>(null);
+  let isVideoPlayerOpen = $state<boolean>(false);
+  let videoStreamUrl = $state<string>('');
+  let videoError = $state<boolean>(false);
+
+  // Queue View Mode State ('grid' | 'list')
+  let queueViewMode = $state<'grid' | 'list'>('grid');
 
   // Auto-Update State (Level 2 Self-Update)
   let appVersion = $state<string>('1.1.1');
@@ -462,6 +476,49 @@
     editingVideo = null;
   }
 
+  function setQueueViewMode(mode: 'grid' | 'list') {
+    queueViewMode = mode;
+    try {
+      localStorage.setItem('uptik_queue_view_mode', mode);
+    } catch (_) {}
+  }
+
+  async function openVideoPlayer(video: VideoItem) {
+    const targetPath = video.fullPath;
+    playingVideo = video;
+    videoError = false;
+    isVideoPlayerOpen = true;
+    try {
+      const url = await GetVideoStreamURL(targetPath);
+      if (playingVideo?.fullPath === targetPath && isVideoPlayerOpen) {
+        videoStreamUrl = url;
+      }
+    } catch (err) {
+      console.error('Failed to get video stream URL:', err);
+      if (playingVideo?.fullPath === targetPath && isVideoPlayerOpen) {
+        videoStreamUrl = '';
+        videoError = true;
+      }
+    }
+  }
+
+  function closeVideoPlayer() {
+    isVideoPlayerOpen = false;
+    playingVideo = null;
+    videoStreamUrl = '';
+    videoError = false;
+  }
+
+  async function handleOpenInDefaultPlayer(path: string) {
+    if (!path) return;
+    try {
+      await OpenInDefaultPlayer(path);
+    } catch (err) {
+      console.error('Failed to open video in external player:', err);
+      addLog('error', `Failed to launch system player: ${err}`);
+    }
+  }
+
   function getSlotLabel(timeStr: string) {
     if (!timeStr) return '';
     const parts = timeStr.trim().split(':');
@@ -549,11 +606,61 @@
   }
 
   async function handleTriggerNow() {
+    if (isTriggeringNow || isUploading) return;
+    isTriggeringNow = true;
     try {
       addLog('info', 'Triggering manual instant upload for next video...');
       await TriggerAutoUploadNow();
     } catch (err) {
       addLog('error', `Error triggering instant upload: ${err}`);
+    } finally {
+      isTriggeringNow = false;
+    }
+  }
+
+  async function handleUploadSingleVideo(video: VideoItem) {
+    if (isUploading) return;
+
+    const channels = settings.enabledChannels && settings.enabledChannels.length > 0
+      ? settings.enabledChannels
+      : ['tiktok', 'youtube'];
+    const channelNames = channels
+      .map(c => platforms.find(p => p.id === c)?.name || c)
+      .join(', ');
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const targetVideo: VideoItem = {
+      ...video,
+      publishMode: 'publish_now',
+      scheduledDate: todayStr,
+      scheduledTime: timeStr,
+      goldenHourSlot: `${timeStr} (${m.publish_mode_now()})`,
+      status: 'uploading'
+    };
+
+    const idx = videos.findIndex(v => v.id === video.id);
+    if (idx !== -1) {
+      videos[idx].status = 'uploading';
+      videos[idx].publishMode = 'publish_now';
+      videos = [...videos];
+    }
+
+    addLog('info', `Starting instant upload for single video: "${video.customTitle}" (${channelNames})...`);
+    isUploading = true;
+
+    try {
+      await StartOmnichannelUpload([targetVideo as any], channels);
+    } catch (err) {
+      addLog('error', `Error starting single video upload: ${err}`);
+      if (idx !== -1) {
+        videos[idx].status = 'error';
+        videos[idx].errorMsg = String(err);
+        videos = [...videos];
+      }
+      isUploading = false;
     }
   }
 
@@ -665,6 +772,13 @@
   let schedulerTimerInterval: any = null;
 
   onMount(() => {
+    try {
+      const savedMode = localStorage.getItem('uptik_queue_view_mode');
+      if (savedMode === 'list' || savedMode === 'grid') {
+        queueViewMode = savedMode;
+      }
+    } catch (_) {}
+
     loadInitialData();
     checkPendingRecovery();
 
@@ -1059,6 +1173,18 @@
           </div>
 
           <div class="flex items-center gap-2.5 w-full lg:w-auto justify-end flex-wrap">
+            <!-- Trigger Now Button (Publish Next Video Immediately) -->
+            <button
+              type="button"
+              onclick={handleTriggerNow}
+              disabled={isUploading || isTriggeringNow || videos.length === 0}
+              title={m.btn_trigger_now_tooltip()}
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 border border-neutral-700 rounded-lg transition active:scale-95 cursor-pointer"
+            >
+              <Zap class="w-3.5 h-3.5 text-amber-400 fill-current {isTriggeringNow ? 'animate-bounce' : ''}" />
+              <span>{m.btn_trigger_now()}</span>
+            </button>
+
             <!-- Toggle Auto Upload Switch/Button -->
             <button
               type="button"
@@ -1083,20 +1209,45 @@
             />
           </div>
 
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-neutral-400 font-medium">{m.col_status()}:</span>
-            <div class="relative inline-flex items-center">
-              <select
-                bind:value={statusFilter}
-                class="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-neutral-700 hover:border-neutral-500 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium text-white focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer transition shadow-sm"
+          <div class="flex items-center gap-3 text-xs">
+            <!-- View Mode Switcher (Grid vs List Detail) -->
+            <div class="flex items-center bg-[#1e1e1e] border border-neutral-700 rounded-lg p-0.5 shadow-sm">
+              <button
+                type="button"
+                onclick={() => setQueueViewMode('grid')}
+                class="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition cursor-pointer {queueViewMode === 'grid' ? 'bg-[#E50914] text-white shadow' : 'text-neutral-400 hover:text-white'}"
+                title={m.view_grid()}
               >
-                <option value="all" class="bg-[#1e1e1e] text-white">{m.filter_all()} ({videos.length})</option>
-                <option value="ready" class="bg-[#1e1e1e] text-white">{m.filter_ready()} ({readyCount})</option>
-                <option value="pending" class="bg-[#1e1e1e] text-white">{m.filter_pending()} ({pendingCount})</option>
-                <option value="scheduled" class="bg-[#1e1e1e] text-white">{m.filter_scheduled()} ({scheduledCount})</option>
-                <option value="error" class="bg-[#1e1e1e] text-white">{m.filter_error()} ({errorCount})</option>
-              </select>
-              <ChevronDown class="w-3.5 h-3.5 text-neutral-400 absolute right-2.5 pointer-events-none" />
+                <LayoutGrid class="w-3.5 h-3.5" />
+                <span class="hidden sm:inline">{m.view_grid()}</span>
+              </button>
+              <button
+                type="button"
+                onclick={() => setQueueViewMode('list')}
+                class="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition cursor-pointer {queueViewMode === 'list' ? 'bg-[#E50914] text-white shadow' : 'text-neutral-400 hover:text-white'}"
+                title={m.view_list()}
+              >
+                <List class="w-3.5 h-3.5" />
+                <span class="hidden sm:inline">{m.view_list()}</span>
+              </button>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="flex items-center gap-2">
+              <span class="text-neutral-400 font-medium">{m.col_status()}:</span>
+              <div class="relative inline-flex items-center">
+                <select
+                  bind:value={statusFilter}
+                  class="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-neutral-700 hover:border-neutral-500 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium text-white focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer transition shadow-sm"
+                >
+                  <option value="all" class="bg-[#1e1e1e] text-white">{m.filter_all()} ({videos.length})</option>
+                  <option value="ready" class="bg-[#1e1e1e] text-white">{m.filter_ready()} ({readyCount})</option>
+                  <option value="pending" class="bg-[#1e1e1e] text-white">{m.filter_pending()} ({pendingCount})</option>
+                  <option value="scheduled" class="bg-[#1e1e1e] text-white">{m.filter_scheduled()} ({scheduledCount})</option>
+                  <option value="error" class="bg-[#1e1e1e] text-white">{m.filter_error()} ({errorCount})</option>
+                </select>
+                <ChevronDown class="w-3.5 h-3.5 text-neutral-400 absolute right-2.5 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
@@ -1116,7 +1267,8 @@
               {m.settings_btn_select_folder()}
             </button>
           </div>
-        {:else}
+        {:else if queueViewMode === 'grid'}
+          <!-- Video Cards Grid -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {#each filteredVideos as v, idx (v.id)}
               <div
@@ -1187,14 +1339,39 @@
                     <span class="text-[11px] text-neutral-500 italic">{m.queue_unassigned_slot()}</span>
                   {/if}
 
-                  <!-- Edit Action Button -->
-                  <button
-                    onclick={() => openEditDialog(v)}
-                    title={m.queue_btn_edit_tooltip()}
-                    class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
-                  >
-                    <Edit3 class="w-3.5 h-3.5" />
-                  </button>
+                  <!-- Card Action Buttons -->
+                  <div class="flex items-center gap-1.5">
+                    <!-- Play Video Button (Netflix Red Theme) -->
+                    <button
+                      type="button"
+                      onclick={() => openVideoPlayer(v)}
+                      title={m.queue_btn_play_tooltip()}
+                      class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded transition cursor-pointer active:scale-95 shadow-sm"
+                    >
+                      <Play class="w-3 h-3 fill-current text-[#E50914]" />
+                      <span>{m.queue_btn_play()}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={() => handleUploadSingleVideo(v)}
+                      disabled={isUploading || v.status === 'uploading' || v.status === 'scheduled'}
+                      title={m.queue_btn_upload_now_tooltip()}
+                      class="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold bg-neutral-800 hover:bg-[#E50914] text-neutral-200 hover:text-white border border-neutral-700 hover:border-[#E50914] rounded transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 disabled:hover:text-neutral-200 disabled:hover:border-neutral-700 active:scale-95"
+                    >
+                      <Zap class="w-3 h-3 text-amber-400 fill-current" />
+                      <span>{m.btn_upload_now()}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick={() => openEditDialog(v)}
+                      title={m.queue_btn_edit_tooltip()}
+                      class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
+                    >
+                      <Edit3 class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Omnichannel Target Platform Badges -->
@@ -1230,6 +1407,165 @@
                 {/if}
               </div>
             {/each}
+          </div>
+        {:else}
+          <!-- Video Cards List Detail Table -->
+          <div class="bg-[#181818] border border-neutral-800 rounded-xl overflow-hidden flex-1 overflow-y-auto max-h-[calc(100vh-270px)] shadow-lg">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-neutral-900 border-b border-neutral-800 text-neutral-400 sticky top-0 z-10">
+                <tr>
+                  <th class="py-3 px-3 font-semibold w-12 text-center">#</th>
+                  <th class="py-3 px-3 font-semibold">{m.col_title_tag()}</th>
+                  <th class="py-3 px-3 font-semibold">{m.col_schedule_time()}</th>
+                  <th class="py-3 px-3 font-semibold">{m.col_channels()}</th>
+                  <th class="py-3 px-3 font-semibold">{m.col_status()}</th>
+                  <th class="py-3 px-3 font-semibold text-right">{m.col_actions()}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-neutral-800/80">
+                {#each filteredVideos as v, idx (v.id)}
+                  <tr class="hover:bg-neutral-800/40 transition group {v.status === 'uploading' ? 'bg-[#E50914]/10' : ''}">
+                    <!-- Order Index -->
+                    <td class="py-3 px-3 text-center">
+                      <span class="font-mono text-neutral-500 text-[11px]">#{idx + 1}</span>
+                    </td>
+
+                    <!-- Title, Filename & File Size -->
+                    <td class="py-3 px-3 max-w-md">
+                      <div class="flex flex-col">
+                        <span class="font-medium text-white group-hover:text-white transition truncate max-w-lg" title={v.customTitle}>
+                          {v.customTitle}
+                        </span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                          <span class="text-[10px] font-mono text-neutral-400 truncate max-w-xs" title={v.filename}>
+                            {v.filename}
+                          </span>
+                          <span class="text-[9px] bg-neutral-800 text-neutral-400 px-1.5 py-0.2 rounded font-mono">
+                            {v.fileSizeHuman}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Schedule Date & Golden Hour Slot -->
+                    <td class="py-3 px-3 whitespace-nowrap">
+                      {#if v.scheduledDate && v.scheduledTime}
+                        <div class="flex items-center gap-1.5">
+                          {#if v.scheduledTime === '11:30'}
+                            <Sun class="w-3.5 h-3.5 text-amber-400" />
+                            <span class="text-amber-300 font-medium">{v.scheduledDate} · 11:30</span>
+                          {:else if v.scheduledTime === '18:30'}
+                            <Sunset class="w-3.5 h-3.5 text-orange-400" />
+                            <span class="text-orange-300 font-medium">{v.scheduledDate} · 18:30</span>
+                          {:else if v.scheduledTime === '21:30'}
+                            <Moon class="w-3.5 h-3.5 text-indigo-400" />
+                            <span class="text-indigo-300 font-medium">{v.scheduledDate} · 21:30</span>
+                          {:else}
+                            <Clock class="w-3.5 h-3.5 text-neutral-400" />
+                            <span class="text-neutral-300 font-medium">{v.scheduledDate} · {v.scheduledTime}</span>
+                          {/if}
+                        </div>
+                      {:else}
+                        <span class="text-[11px] text-neutral-500 italic">{m.queue_unassigned_slot()}</span>
+                      {/if}
+                    </td>
+
+                    <!-- Target Channels -->
+                    <td class="py-3 px-3">
+                      <div class="flex items-center gap-1 flex-wrap">
+                        {#each settings.enabledChannels as ch}
+                          {@const pInfo = platforms.find(p => p.id === ch)}
+                          {@const chState = v.channels?.[ch]?.status || (v.status === 'scheduled' ? 'scheduled' : v.status === 'uploading' ? 'uploading' : 'ready')}
+                          <span
+                            class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border {chState === 'scheduled' ? 'bg-emerald-950/70 border-emerald-800 text-emerald-300' : chState === 'uploading' ? 'bg-[#E50914]/20 border-[#E50914] text-[#E50914] animate-pulse' : chState === 'error' ? 'bg-red-950 border-red-800 text-red-300' : 'bg-neutral-900 border-neutral-700 text-neutral-400'}"
+                            title="{pInfo?.name || ch}: {chState}"
+                          >
+                            {#if pInfo?.icon}
+                              {@const Icon = pInfo.icon}
+                              <Icon class="w-2.5 h-2.5" />
+                            {/if}
+                            <span>{pInfo?.name ? pInfo.name.split(' ')[0] : ch}</span>
+                          </span>
+                        {/each}
+                      </div>
+                    </td>
+
+                    <!-- Status -->
+                    <td class="py-3 px-3 whitespace-nowrap">
+                      {#if v.status === 'scheduled'}
+                        <span class="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-2 py-0.5 rounded font-medium">
+                          <CheckCircle2 class="w-3 h-3" /> {m.status_scheduled()}
+                        </span>
+                      {:else if v.status === 'uploading'}
+                        <span class="inline-flex items-center gap-1 text-[11px] text-[#E50914] bg-[#E50914]/15 border border-[#E50914]/40 px-2 py-0.5 rounded font-bold animate-pulse">
+                          {m.status_uploading()}...
+                        </span>
+                      {:else if v.status === 'error'}
+                        <span class="inline-flex items-center gap-1 text-[11px] text-red-400 bg-red-950 border border-red-800 px-2 py-0.5 rounded font-medium">
+                          <AlertCircle class="w-3 h-3" /> {m.status_error()}
+                        </span>
+                      {:else if v.scheduledDate}
+                        <span class="text-[11px] text-blue-400 bg-blue-950/60 border border-blue-800/60 px-2 py-0.5 rounded font-medium">
+                          {m.status_ready()}
+                        </span>
+                      {:else}
+                        <span class="text-[11px] text-neutral-400 bg-neutral-800/60 border border-neutral-700 px-2 py-0.5 rounded">
+                          {m.status_pending()}
+                        </span>
+                      {/if}
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="py-3 px-3 text-right whitespace-nowrap">
+                      <div class="flex items-center justify-end gap-1.5">
+                        <!-- Play Button (Netflix Red Theme) -->
+                        <button
+                          type="button"
+                          onclick={() => openVideoPlayer(v)}
+                          title={m.queue_btn_play_tooltip()}
+                          class="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white border border-neutral-700 hover:border-neutral-500 rounded transition cursor-pointer active:scale-95 shadow-sm"
+                        >
+                          <Play class="w-3 h-3 fill-current text-[#E50914]" />
+                          <span>{m.queue_btn_play()}</span>
+                        </button>
+
+                        <!-- Publish Now Button -->
+                        <button
+                          type="button"
+                          onclick={() => handleUploadSingleVideo(v)}
+                          disabled={isUploading || v.status === 'uploading' || v.status === 'scheduled'}
+                          title={m.queue_btn_upload_now_tooltip()}
+                          class="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold bg-neutral-800 hover:bg-[#E50914] text-neutral-200 hover:text-white border border-neutral-700 hover:border-[#E50914] rounded transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-neutral-800 disabled:hover:text-neutral-200 disabled:hover:border-neutral-700 active:scale-95"
+                        >
+                          <Zap class="w-3 h-3 text-amber-400 fill-current" />
+                          <span>{m.btn_upload_now()}</span>
+                        </button>
+
+                        <!-- Edit Button -->
+                        <button
+                          type="button"
+                          onclick={() => openEditDialog(v)}
+                          title={m.queue_btn_edit_tooltip()}
+                          class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
+                        >
+                          <Edit3 class="w-3.5 h-3.5" />
+                        </button>
+
+                        <!-- Open Folder Button -->
+                        <button
+                          type="button"
+                          onclick={() => OpenInFileManager(v.fullPath ? v.fullPath.substring(0, v.fullPath.lastIndexOf('/')) : settings.videoFolder)}
+                          title={m.btn_open_file()}
+                          class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
+                        >
+                          <Folder class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
           </div>
         {/if}
       </Tabs.Content>
@@ -2160,6 +2496,141 @@
             >
               {m.dialog_btn_save()}
             </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Positioner>
+    </Portal>
+  </Dialog.Root>
+
+  <!-- ARK UI DIALOG: VIDEO PLAYER MODAL (LAZY LOADED) -->
+  <Dialog.Root open={isVideoPlayerOpen} onOpenChange={(e) => { if (!e.open) closeVideoPlayer(); }}>
+    <Portal>
+      <Dialog.Backdrop class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 transition-opacity" />
+      <Dialog.Positioner class="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <Dialog.Content class="bg-[#181818] border border-neutral-700 rounded-2xl w-full max-w-4xl p-5 shadow-2xl relative text-white flex flex-col gap-4">
+          <!-- Header -->
+          <div class="flex items-start justify-between gap-3 border-b border-neutral-800 pb-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <Dialog.Title class="text-base font-bold text-white flex items-center gap-2 truncate">
+                  <Play class="w-4 h-4 text-[#E50914] fill-current" />
+                  <span>{m.player_dialog_title()}</span>
+                </Dialog.Title>
+                {#if playingVideo}
+                  <span class="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded font-mono">
+                    {playingVideo.fileSizeHuman}
+                  </span>
+                {/if}
+              </div>
+              {#if playingVideo}
+                <p class="text-xs text-neutral-300 font-medium truncate mt-1">
+                  {playingVideo.customTitle}
+                </p>
+                <p class="text-[11px] text-neutral-500 font-mono truncate" title={playingVideo.filename}>
+                  {playingVideo.filename}
+                </p>
+              {/if}
+            </div>
+
+            <Dialog.CloseTrigger
+              onclick={closeVideoPlayer}
+              class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition cursor-pointer"
+              title={m.dialog_btn_cancel()}
+            >
+              <X class="w-5 h-5" />
+            </Dialog.CloseTrigger>
+          </div>
+
+          <!-- Video Player Container (Mounted ONLY when modal is active) -->
+          {#if isVideoPlayerOpen && playingVideo}
+            <div class="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-neutral-800 shadow-2xl">
+              {#if videoError}
+                <div class="flex flex-col items-center justify-center text-center p-6 space-y-3">
+                  <AlertCircle class="w-10 h-10 text-red-500" />
+                  <p class="text-sm font-semibold text-neutral-200">{m.player_unsupported()}</p>
+                  <button
+                    type="button"
+                    onclick={() => {
+                      if (playingVideo?.fullPath) {
+                        handleOpenInDefaultPlayer(playingVideo.fullPath);
+                      }
+                    }}
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#E50914] hover:bg-[#F40612] text-white rounded-lg transition cursor-pointer shadow active:scale-95"
+                  >
+                    <ExternalLink class="w-3.5 h-3.5" />
+                    <span>{m.player_open_external()}</span>
+                  </button>
+                </div>
+              {:else if videoStreamUrl}
+                <video
+                  src={videoStreamUrl}
+                  controls
+                  autoplay
+                  playsinline
+                  class="w-full h-full max-h-[65vh] object-contain"
+                  onerror={() => {
+                    videoError = true;
+                  }}
+                >
+                  <track kind="captions" />
+                  {m.player_unsupported()}
+                </video>
+              {:else}
+                <div class="flex items-center justify-center p-12 text-neutral-500 text-xs">
+                  <RefreshCw class="w-5 h-5 animate-spin text-[#E50914] mr-2" />
+                  <span>Loading...</span>
+                </div>
+              {/if}
+            </div>
+          {/if}
+
+          <!-- Footer Actions -->
+          <div class="flex items-center justify-between gap-3 pt-2 border-t border-neutral-800 flex-wrap">
+            <div class="flex items-center gap-2">
+              {#if playingVideo}
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (playingVideo?.fullPath) {
+                      handleOpenInDefaultPlayer(playingVideo.fullPath);
+                    }
+                  }}
+                  class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 hover:text-white rounded-lg border border-neutral-700 transition cursor-pointer"
+                  title={m.player_open_external()}
+                >
+                  <ExternalLink class="w-3.5 h-3.5 text-neutral-400" />
+                  <span>{m.player_open_external()}</span>
+                </button>
+              {/if}
+            </div>
+
+            <div class="flex items-center gap-2">
+              {#if playingVideo}
+                <button
+                  type="button"
+                  onclick={() => {
+                    if (playingVideo) {
+                      const v = playingVideo;
+                      closeVideoPlayer();
+                      handleUploadSingleVideo(v);
+                    }
+                  }}
+                  disabled={isUploading || playingVideo.status === 'uploading' || playingVideo.status === 'scheduled'}
+                  class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-[#E50914] hover:bg-[#F40612] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition cursor-pointer shadow active:scale-95"
+                >
+                  <Zap class="w-3.5 h-3.5 text-amber-300 fill-current" />
+                  <span>{m.btn_upload_now()}</span>
+                </button>
+              {/if}
+
+              <button
+                type="button"
+                onclick={closeVideoPlayer}
+                class="px-3.5 py-1.5 text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg border border-neutral-700 transition cursor-pointer"
+              >
+                {m.dialog_btn_cancel()}
+              </button>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Positioner>
