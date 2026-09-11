@@ -132,36 +132,85 @@ elif [ "${TARGET_OS}" = "linux" ]; then
     EXTRACT_DIR="$(find "${TMP_DIR}" -name "uptik" -type f -exec dirname {} \; | head -n1)"
   fi
   
-  BIN_DIR="${HOME}/.local/bin"
-  APPS_DIR="${HOME}/.local/share/applications"
-  ICONS_DIR="${HOME}/.local/share/pixmaps"
+  BIN_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
+  APPS_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
+  ICONS_BASE="${XDG_DATA_HOME:-${HOME}/.local/share}/icons"
+  HICOLOR_DIR="${ICONS_BASE}/hicolor"
   
-  mkdir -p "${BIN_DIR}" "${APPS_DIR}" "${ICONS_DIR}"
+  mkdir -p "${BIN_DIR}" "${APPS_DIR}" "${ICONS_BASE}"
   
   info "Installing binary to ${BIN_DIR}/uptik..."
   cp "${EXTRACT_DIR}/uptik" "${BIN_DIR}/uptik"
   chmod 755 "${BIN_DIR}/uptik"
   
+  # Install Desktop Icons across standard XDG hicolor resolutions
   if [ -f "${EXTRACT_DIR}/uptik.png" ]; then
-    cp "${EXTRACT_DIR}/uptik.png" "${ICONS_DIR}/uptik.png"
+    info "Installing application icons to ${HICOLOR_DIR}..."
+    ICON_SRC="${EXTRACT_DIR}/uptik.png"
+    SIZES="16 24 32 48 64 128 256 512"
+    
+    for s in ${SIZES}; do
+      TARGET_DIR="${HICOLOR_DIR}/${s}x${s}/apps"
+      mkdir -p "${TARGET_DIR}"
+      if command -v convert >/dev/null 2>&1; then
+        convert "${ICON_SRC}" -resize "${s}x${s}" "${TARGET_DIR}/uptik.png" 2>/dev/null || cp "${ICON_SRC}" "${TARGET_DIR}/uptik.png"
+      elif command -v magick >/dev/null 2>&1; then
+        magick "${ICON_SRC}" -resize "${s}x${s}" "${TARGET_DIR}/uptik.png" 2>/dev/null || cp "${ICON_SRC}" "${TARGET_DIR}/uptik.png"
+      elif command -v ffmpeg >/dev/null 2>&1; then
+        ffmpeg -y -i "${ICON_SRC}" -vf "scale=${s}:${s}" "${TARGET_DIR}/uptik.png" -loglevel quiet 2>/dev/null || cp "${ICON_SRC}" "${TARGET_DIR}/uptik.png"
+      else
+        cp "${ICON_SRC}" "${TARGET_DIR}/uptik.png"
+      fi
+    done
+    
+    # Fallback locations for older environments and pixmap searchers
+    cp "${ICON_SRC}" "${ICONS_BASE}/uptik.png" 2>/dev/null || true
+    mkdir -p "${HOME}/.icons" && cp "${ICON_SRC}" "${HOME}/.icons/uptik.png" 2>/dev/null || true
+    mkdir -p "${XDG_DATA_HOME:-${HOME}/.local/share}/pixmaps" && cp "${ICON_SRC}" "${XDG_DATA_HOME:-${HOME}/.local/share}/pixmaps/uptik.png" 2>/dev/null || true
+    
+    # Update GTK and XDG icon theme caches
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+      gtk-update-icon-cache -q -t -f "${HICOLOR_DIR}" 2>/dev/null || true
+    fi
+    if command -v xdg-icon-resource >/dev/null 2>&1; then
+      xdg-icon-resource forceupdate --theme hicolor 2>/dev/null || true
+    fi
   fi
   
+  # Install Desktop Entry (.desktop)
   if [ -f "${EXTRACT_DIR}/uptik.desktop" ]; then
-    sed "s|Exec=.*|Exec=${BIN_DIR}/uptik|" "${EXTRACT_DIR}/uptik.desktop" > "${APPS_DIR}/uptik.desktop"
+    info "Installing desktop entry to ${APPS_DIR}/uptik.desktop..."
+    # Preserve required WebKitGTK environmental flags (IB-1) while setting the correct executable path
+    sed -e "s|Exec=.*uptik|Exec=env WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 ${BIN_DIR}/uptik|" \
+        -e "s|^Icon=.*|Icon=uptik|" \
+        "${EXTRACT_DIR}/uptik.desktop" > "${APPS_DIR}/uptik.desktop"
     chmod 644 "${APPS_DIR}/uptik.desktop"
-    update-desktop-database "${APPS_DIR}" 2>/dev/null || true
+    
+    if command -v update-desktop-database >/dev/null 2>&1; then
+      update-desktop-database "${APPS_DIR}" 2>/dev/null || true
+    fi
+    
+    # Refresh desktop panels and application menus immediately
+    if [ "${XDG_CURRENT_DESKTOP}" = "XFCE" ] || command -v xfce4-panel >/dev/null 2>&1; then
+      xfce4-panel -r 2>/dev/null || true
+    fi
+    if command -v kbuildsycoca6 >/dev/null 2>&1; then
+      kbuildsycoca6 2>/dev/null || true
+    elif command -v kbuildsycoca5 >/dev/null 2>&1; then
+      kbuildsycoca5 2>/dev/null || true
+    fi
   fi
   
   success "UpTik ${TAG_NAME} successfully installed to ${BIN_DIR}/uptik!"
   
-  # Check if ~/.local/bin is in PATH
+  # Check if BIN_DIR is in PATH
   case ":${PATH}:" in
     *:"${BIN_DIR}":*)
       ;;
     *)
       warn "${BIN_DIR} is not in your current PATH."
       warn "Add it by adding this line to your ~/.bashrc or ~/.zshrc:"
-      warn "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+      warn "  export PATH=\"${BIN_DIR}:\$PATH\""
       ;;
   esac
   
