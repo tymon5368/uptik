@@ -193,19 +193,18 @@ jobs:
           cp build/appicon.png "${DEB_DIR}/usr/share/icons/hicolor/512x512/apps/uptik.png"
           chmod 644 "${DEB_DIR}/usr/share/icons/hicolor/512x512/apps/uptik.png"
 
-          cat << 'EOF' > "${DEB_DIR}/DEBIAN/control"
-Package: uptik
-Version: REPLACE_VERSION
-Section: utils
-Priority: optional
-Architecture: amd64
-Maintainer: UpTik <noreply@uptik.app>
-Description: TikTok Auto Scheduler & Omnichannel Video Studio
- UpTik is an omnichannel desktop studio for automated content scheduling
- across TikTok Studio, YouTube Shorts, and Meta Business Suite.
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libayatana-appindicator3-1
-EOF
-          sed -i "s/REPLACE_VERSION/${VERSION}/g" "${DEB_DIR}/DEBIAN/control"
+          {
+            echo "Package: uptik"
+            echo "Version: ${VERSION}"
+            echo "Section: utils"
+            echo "Priority: optional"
+            echo "Architecture: amd64"
+            echo "Maintainer: UpTik <noreply@uptik.app>"
+            echo "Description: TikTok Auto Scheduler & Omnichannel Video Studio"
+            echo " UpTik is an omnichannel desktop studio for automated content scheduling"
+            echo " across TikTok Studio, YouTube Shorts, and Meta Business Suite."
+            echo "Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libayatana-appindicator3-1"
+          } > "${DEB_DIR}/DEBIAN/control"
 
           dpkg-deb --build "${DEB_DIR}" "artifacts/uptik-${VERSION}-linux-amd64.deb"
           rm -rf "${DEB_DIR}" dist-pkg
