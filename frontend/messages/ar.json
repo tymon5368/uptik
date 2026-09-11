@@ -201,5 +201,12 @@
   "logs_level_error": "[خطأ]",
   "logs_level_info": "[معلومات]",
   "settings_section_channels_desc": "حدد المنصات الاجتماعية المستهدفة وقم بمصادقة جلسات Chrome",
-  "settings_section_system_desc": "تكوين سلوك بدء التشغيل، التصغير إلى علبة النظام، والاستمرار في الخلفية"
+  "settings_section_system_desc": "تكوين سلوك بدء التشغيل، التصغير إلى علبة النظام، والاستمرار في الخلفية",
+  "lang_zh": "中文 (简体)",
+  "lang_ko": "한국어",
+  "lang_es": "Español",
+  "lang_it": "Italiano",
+  "lang_nl": "Nederlands",
+  "lang_pl": "Polski",
+  "lang_pt": "Português"
 }

@@ -201,5 +201,12 @@
   "logs_level_error": "[ERREUR]",
   "logs_level_info": "[INFO]",
   "settings_section_channels_desc": "Sélectionnez les plateformes cibles et authentifiez les sessions Chrome",
-  "settings_section_system_desc": "Configurer le démarrage du système, la réduction dans la barre d'état et l'arrière-plan"
+  "settings_section_system_desc": "Configurer le démarrage du système, la réduction dans la barre d'état et l'arrière-plan",
+  "lang_zh": "中文 (简体)",
+  "lang_ko": "한국어",
+  "lang_es": "Español",
+  "lang_it": "Italiano",
+  "lang_nl": "Nederlands",
+  "lang_pl": "Polski",
+  "lang_pt": "Português"
 }

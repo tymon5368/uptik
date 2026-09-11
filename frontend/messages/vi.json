@@ -201,5 +201,12 @@
   "logs_level_error": "[LỖI]",
   "logs_level_info": "[INFO]",
   "settings_section_channels_desc": "Chọn các nền tảng mạng xã hội mục tiêu và đăng nhập phiên làm việc Chrome",
-  "settings_section_system_desc": "Cấu hình khởi động cùng hệ thống, thu nhỏ khay hệ thống và chạy ngầm"
+  "settings_section_system_desc": "Cấu hình khởi động cùng hệ thống, thu nhỏ khay hệ thống và chạy ngầm",
+  "lang_zh": "中文 (简体)",
+  "lang_ko": "한국어",
+  "lang_es": "Español",
+  "lang_it": "Italiano",
+  "lang_nl": "Nederlands",
+  "lang_pl": "Polski",
+  "lang_pt": "Português"
 }

@@ -53,7 +53,7 @@ type Settings struct {
 	PublishMode       PublishMode `json:"publishMode"`
 	AutoUploadEnabled bool        `json:"autoUploadEnabled"`
 	MissedSlotPolicy  string      `json:"missedSlotPolicy"` // "skip" or "run_immediate"
-	Locale            string      `json:"locale"`           // "en", "de", "ja", "ar", "fr", "vi"
+	Locale            string      `json:"locale"`           // "en", "zh", "de", "ja", "ko", "fr", "es", "it", "nl", "pl", "pt", "ar", "vi"
 }
 
 // HistoryRecord represents an archived successful schedule entry

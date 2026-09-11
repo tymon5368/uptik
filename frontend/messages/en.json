@@ -201,5 +201,12 @@
   "logs_level_error": "[ERROR]",
   "logs_level_info": "[INFO]",
   "settings_section_channels_desc": "Select target social platforms and authenticate Chrome sessions",
-  "settings_section_system_desc": "Configure system startup behavior, minimize to tray, and background persistence"
+  "settings_section_system_desc": "Configure system startup behavior, minimize to tray, and background persistence",
+  "lang_zh": "中文 (简体)",
+  "lang_ko": "한국어",
+  "lang_es": "Español",
+  "lang_it": "Italiano",
+  "lang_nl": "Nederlands",
+  "lang_pl": "Polski",
+  "lang_pt": "Português"
 }

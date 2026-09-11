@@ -201,5 +201,12 @@
   "logs_level_error": "[FEHLER]",
   "logs_level_info": "[INFO]",
   "settings_section_channels_desc": "Wählen Sie Zielkanäle aus und authentifizieren Sie Chrome-Sitzungen",
-  "settings_section_system_desc": "Systemstart-Verhalten, Minimieren in den Infobereich und Hintergrundbetrieb konfigurieren"
+  "settings_section_system_desc": "Systemstart-Verhalten, Minimieren in den Infobereich und Hintergrundbetrieb konfigurieren",
+  "lang_zh": "中文 (简体)",
+  "lang_ko": "한국어",
+  "lang_es": "Español",
+  "lang_it": "Italiano",
+  "lang_nl": "Nederlands",
+  "lang_pl": "Polski",
+  "lang_pt": "Português"
 }
