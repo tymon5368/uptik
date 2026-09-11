@@ -1,0 +1,21 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "uptik",
+  "outputfilename": "uptik",
+  "build:tags": "webkit2_41",
+  "frontend:install": "bun install",
+  "frontend:build": "bun run build",
+  "frontend:dev:watcher": "bun run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Tymon",
+    "email": "tymon3568@gmail.com"
+  },
+  "info": {
+    "companyName": "UpTik",
+    "productName": "UpTik",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 Tymon",
+    "comments": "UpTik - Omnichannel Video Auto-Scheduler Desktop App"
+  }
+}

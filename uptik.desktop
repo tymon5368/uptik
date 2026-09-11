@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=UpTik
+GenericName=TikTok Auto Scheduler
+Comment=TikTok Auto Scheduler & Omnichannel Video Studio
+Exec=env WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 uptik
+Icon=uptik
+Terminal=false
+Categories=Utility;AudioVideo;
+StartupWMClass=uptik
+Keywords=tiktok;scheduler;video;studio;uptik;

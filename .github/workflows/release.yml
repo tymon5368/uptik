@@ -1,0 +1,273 @@
+name: Release UpTik
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name (e.g. v1.0.0)'
+        required: false
+        default: ''
+      draft:
+        description: 'Create a draft release'
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Code Quality & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Linux GTK & WebKitGTK dev packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+
+      - name: Check Frontend (Svelte 5 & TypeScript)
+        run: |
+          cd frontend
+          bun install --frozen-lockfile || bun install
+          bun run check
+          bun run build
+
+      - name: Run Backend Tests
+        run: |
+          go test -tags "webkit2_41" ./...
+
+  build:
+    name: Build (${{ matrix.platform.name }})
+    needs: [validate]
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux (amd64)
+            os: ubuntu-22.04
+            target: linux/amd64
+            tags: "webkit2_41"
+          - name: Windows (amd64)
+            os: windows-latest
+            target: windows/amd64
+            tags: ""
+          - name: macOS (Universal)
+            os: macos-latest
+            target: darwin/universal
+            tags: ""
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: meta
+        shell: bash
+        run: |
+          RAW_TAG="${{ inputs.tag_name || github.ref_name }}"
+          if [ -z "$RAW_TAG" ] || [ "$RAW_TAG" = "main" ] || [ "$RAW_TAG" = "master" ]; then
+            RAW_TAG="v1.0.0"
+          fi
+          VERSION="${RAW_TAG#v}"
+          echo "tag=${RAW_TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Linux Build Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+
+      - name: Ensure NSIS on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          if [ -d "C:/Program Files (x86)/NSIS" ]; then
+            echo "C:/Program Files (x86)/NSIS" >> $GITHUB_PATH
+          fi
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Install Frontend Dependencies
+        shell: bash
+        run: |
+          cd frontend
+          bun install
+
+      - name: Sync Version in Configuration Files
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          sed -i.bak "s/Version = \".*\"/Version = \"${VERSION}\"/" version.go || sed -i "" "s/Version = \".*\"/Version = \"${VERSION}\"/" version.go || true
+          sed -i.bak "s/\"productVersion\": \".*\"/\"productVersion\": \"${VERSION}\"/" wails.json || sed -i "" "s/\"productVersion\": \".*\"/\"productVersion\": \"${VERSION}\"/" wails.json || true
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" frontend/package.json || sed -i "" "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" frontend/package.json || true
+
+      - name: Build Application with Wails
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          BUILD_TAGS="${{ matrix.platform.tags }}"
+          TARGET="${{ matrix.platform.target }}"
+          
+          EXTRA_FLAGS="-clean -trimpath -ldflags \"-X main.Version=${VERSION} -X main.Commit=${GITHUB_SHA::7}\""
+          if [ -n "$BUILD_TAGS" ]; then
+            EXTRA_FLAGS="${EXTRA_FLAGS} -tags ${BUILD_TAGS}"
+          fi
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            EXTRA_FLAGS="${EXTRA_FLAGS} -nsis"
+          fi
+          
+          eval wails build -platform "${TARGET}" ${EXTRA_FLAGS}
+
+      - name: Package Linux Artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          PKG_NAME="uptik-${VERSION}-linux-amd64"
+          mkdir -p "dist-pkg/${PKG_NAME}"
+          cp build/bin/uptik "dist-pkg/${PKG_NAME}/"
+          cp uptik.desktop "dist-pkg/${PKG_NAME}/"
+          cp build/appicon.png "dist-pkg/${PKG_NAME}/uptik.png"
+          (cd dist-pkg && tar -czvf "../${PKG_NAME}.tar.gz" "${PKG_NAME}")
+          mkdir -p artifacts
+          mv "${PKG_NAME}.tar.gz" artifacts/
+
+      - name: Package Windows Artifacts
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          mkdir -p artifacts
+          
+          # Standalone portable zip
+          mkdir -p "uptik-${VERSION}-windows-amd64"
+          cp build/bin/uptik.exe "uptik-${VERSION}-windows-amd64/"
+          7z a "artifacts/uptik-${VERSION}-windows-amd64-portable.zip" "./uptik-${VERSION}-windows-amd64"
+          
+          # NSIS installer
+          if [ -f "build/bin/uptik-amd64-installer.exe" ]; then
+            cp "build/bin/uptik-amd64-installer.exe" "artifacts/uptik-${VERSION}-windows-amd64-setup.exe"
+          elif ls build/bin/*installer*.exe 1> /dev/null 2>&1; then
+            cp build/bin/*installer*.exe "artifacts/uptik-${VERSION}-windows-amd64-setup.exe"
+          fi
+
+      - name: Package macOS Artifacts
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent build/bin/uptik.app "artifacts/uptik-${VERSION}-macos-universal.zip"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.platform.target }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: meta
+        shell: bash
+        run: |
+          RAW_TAG="${{ inputs.tag_name || github.ref_name }}"
+          if [ -z "$RAW_TAG" ] || [ "$RAW_TAG" = "main" ] || [ "$RAW_TAG" = "master" ]; then
+            RAW_TAG="v1.0.0"
+          fi
+          VERSION="${RAW_TAG#v}"
+          echo "tag=${RAW_TAG}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+          pattern: artifacts-*
+          merge-multiple: true
+
+      - name: Generate Checksums (SHA256)
+        shell: bash
+        run: |
+          cd downloaded-artifacts
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: UpTik ${{ steps.meta.outputs.tag }}
+          draft: ${{ inputs.draft || false }}
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true
+          files: |
+            downloaded-artifacts/*
+          body: |
+            ## 🚀 UpTik ${{ steps.meta.outputs.tag }} - Omnichannel Video Studio
+            
+            Bản phát hành chính thức của ứng dụng **UpTik** hỗ trợ đa nền tảng (Windows, macOS, Linux).
+
+            ### 📦 Danh Sách Tệp Tải Về
+            - **Windows**: 
+              - Cài đặt (NSIS Installer): `uptik-${{ steps.meta.outputs.version }}-windows-amd64-setup.exe`
+              - Bản di động (Portable): `uptik-${{ steps.meta.outputs.version }}-windows-amd64-portable.zip`
+            - **macOS**:
+              - Ứng dụng Universal (Apple Silicon & Intel): `uptik-${{ steps.meta.outputs.version }}-macos-universal.zip`
+            - **Linux**:
+              - Gói nén nhị phân: `uptik-${{ steps.meta.outputs.version }}-linux-amd64.tar.gz`
+            - **Mã kiểm tra toàn vẹn**: `SHA256SUMS.txt`
+            
+            ### ✨ Tính Năng Nổi Bật
+            - **Omnichannel Scheduler**: Phân bổ video vào khung giờ vàng (11:30, 18:30, 21:30) trong 30 ngày.
+            - **Multi-Platform CDP**: Tự động đăng tải lên TikTok Studio, YouTube Shorts, Meta Business Suite.
+            - **Transactional Outbox Queue**: Lưu trữ trạng thái bền vững với SQLite (WAL Mode), khôi phục tức thì khi crash.
+            - **Safety Circuit Breaker**: Tự động dừng an toàn khi gặp Checkpoint / Captcha / Rate Limit.
+            - **Native Desktop Experience**: Tích hợp Khay hệ thống (System Tray), Close-to-Tray, và Autostart.
+            - **Modern UI**: Svelte 5 Runes, Netflix Studio Dark Theme, 100% Lucide Icons.

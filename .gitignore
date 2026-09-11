@@ -1,0 +1,20 @@
+build/bin
+node_modules
+frontend/node_modules
+frontend/dist
+uptik
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+Gemini_Generated_Image_*
+
+# AI Agent Framework, Rules & Knowledge Catalogues (Proprietary)
+AGENTS.md
+CLAUDE.md
+.agents/
+.codegraph/
+.mcp.json
+docs/CP.md
+docs/IB.md
+
