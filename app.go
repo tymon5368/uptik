@@ -148,7 +148,7 @@ func (a *App) startup(ctx context.Context) {
 		if err == nil && recovered > 0 {
 			runtime.EventsEmit(a.ctx, "log_entry", domain.LogEntry{
 				Level:     "warn",
-				Message:   fmt.Sprintf("Khôi phục thành công %d tác vụ upload bị gián đoạn từ phiên trước.", recovered),
+				Message:   fmt.Sprintf("Recovered %d interrupted upload tasks from previous session.", recovered),
 				Timestamp: time.Now().Format("15:04:05"),
 			})
 			runtime.EventsEmit(a.ctx, "queue_recovered", map[string]interface{}{
@@ -299,7 +299,7 @@ func (a *App) OpenPlatformLogin(platformID string) error {
 	page := a.browser.MustPage()
 	runtime.EventsEmit(a.ctx, "log_entry", domain.LogEntry{
 		Level:     "info",
-		Message:   fmt.Sprintf("Mở trang quản trị: %s (%s)", platform.DisplayName(), platform.LoginURL()),
+		Message:   fmt.Sprintf("Opening platform dashboard: %s (%s)", platform.DisplayName(), platform.LoginURL()),
 		Timestamp: time.Now().Format("15:04:05"),
 	})
 	return page.Navigate(platform.LoginURL())
@@ -383,7 +383,7 @@ func (a *App) StartOmnichannelUpload(queueItems []domain.VideoItem, channels []s
 		if err := a.connectOrLaunchBrowser(); err != nil {
 			runtime.EventsEmit(a.ctx, "log_entry", domain.LogEntry{
 				Level:     "error",
-				Message:   fmt.Sprintf("Lỗi kết nối Chrome: %v", err),
+				Message:   fmt.Sprintf("Chrome CDP connection error: %v", err),
 				Timestamp: time.Now().Format("15:04:05"),
 			})
 			return

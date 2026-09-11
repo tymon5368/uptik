@@ -38,7 +38,7 @@ func (p *TikTokUploader) CheckLogin(ctx context.Context, b *rod.Browser, logFn f
 	defer page.Close()
 
 	if logFn != nil {
-		logFn("info", "Đang kiểm tra đăng nhập TikTok Studio...")
+		logFn("info", "Checking TikTok Studio login status...")
 	}
 	_ = page.Navigate(p.LoginURL())
 	_ = page.WaitLoad()
@@ -71,8 +71,8 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		}
 	}
 
-	log("info", fmt.Sprintf("🎬 Bắt đầu upload: %s", item.CustomTitle))
-	log("info", fmt.Sprintf("📅 Dự kiến lên lịch: %s lúc %s (%s)", item.ScheduledDate, item.ScheduledTime, item.GoldenHourSlot))
+	log("info", fmt.Sprintf("🎬 Starting upload: %s", item.CustomTitle))
+	log("info", fmt.Sprintf("📅 Scheduled for: %s at %s (%s)", item.ScheduledDate, item.ScheduledTime, item.GoldenHourSlot))
 
 	// Find existing page or create new
 	pages, err := b.Pages()
@@ -93,9 +93,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	page.MustSetViewport(1440, 900, 1, false)
 
 	// Step 1: Navigate to upload page
-	log("cdp", "Điều hướng tới TikTok Studio Upload...")
+	log("cdp", "Navigating to TikTok Studio Upload...")
 	if err := page.Navigate(p.LoginURL()); err != nil {
-		return fmt.Errorf("lỗi chuyển trang: %w", err)
+		return fmt.Errorf("navigation error: %w", err)
 	}
 
 	_ = page.WaitLoad()
@@ -109,7 +109,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 
 	info, err := page.Info()
 	if err == nil && strings.Contains(info.URL, "/login") {
-		return fmt.Errorf("chưa đăng nhập TikTok Studio. Vui lòng mở trình duyệt và đăng nhập")
+		return fmt.Errorf("not logged into TikTok Studio. Please log in via browser")
 	}
 
 	// Remove iframe blockers
@@ -119,7 +119,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	}`)
 
 	// Step 2: Upload file with Selector Fallback Matrix
-	log("cdp", fmt.Sprintf("Chọn file video: %s (%s)", item.Filename, item.FileSizeHuman))
+	log("cdp", fmt.Sprintf("Selecting video file: %s (%s)", item.Filename, item.FileSizeHuman))
 	fileInputSelectors := []string{
 		"input[type=\"file\"]",
 		"[data-e2e=\"upload-file-input\"]",
@@ -136,7 +136,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	}
 
 	if fileInput == nil {
-		return fmt.Errorf("không tìm thấy ô input upload file qua Selector Fallback Matrix")
+		return fmt.Errorf("file input element not found via Selector Fallback Matrix")
 	}
 
 	absPath, err := filepath.Abs(item.FullPath)
@@ -144,21 +144,21 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		absPath = item.FullPath
 	}
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		return fmt.Errorf("file không tồn tại trên ổ cứng: %s", absPath)
+		return fmt.Errorf("file does not exist on disk: %s", absPath)
 	}
 
 	if err := fileInput.SetFiles([]string{absPath}); err != nil {
-		return fmt.Errorf("không thể đính kèm file: %w", err)
+		return fmt.Errorf("failed to attach file: %w", err)
 	}
 
-	log("info", "⏳ Đã gửi file qua CDP, đang đợi TikTok phân tích video...")
+	log("info", "⏳ File sent via CDP, waiting for TikTok to process video...")
 
 	// Step 3: Wait for editor
 	err = rod.Try(func() {
 		page.Timeout(90 * time.Second).MustElement(".file-content, .upload-content, [contenteditable=\"true\"], .caption-editor")
 	})
 	if err != nil {
-		return fmt.Errorf("timeout chờ TikTok xử lý video (sau 90s): %w", err)
+		return fmt.Errorf("timeout waiting for TikTok to process video (after 90s): %w", err)
 	}
 
 	time.Sleep(3 * time.Second)
@@ -166,7 +166,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	isPublishNow := item.PublishMode == domain.PublishModePublishNow
 
 	if isPublishNow {
-		log("cdp", fmt.Sprintf("Chế độ Publish Now: Điền Caption và chuẩn bị đăng ngay (%s)", item.CustomTitle))
+		log("cdp", fmt.Sprintf("Publish Now mode: Filling caption and preparing to post (%s)", item.CustomTitle))
 		publishNowScript := `(title) => {
 			return new Promise((resolve) => {
 				// 1. Caption
@@ -214,7 +214,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		targetHour := fmt.Sprintf("%02s", strings.TrimSpace(timeParts[0]))
 		targetMin := fmt.Sprintf("%02s", strings.TrimSpace(timeParts[1]))
 
-		log("cdp", fmt.Sprintf("Điền Caption và cấu hình lịch: %04d-%02d-%02d %s:%s", targetYear, targetMonth, targetDay, targetHour, targetMin))
+		log("cdp", fmt.Sprintf("Filling caption and configuring schedule: %04d-%02d-%02d %s:%s", targetYear, targetMonth, targetDay, targetHour, targetMin))
 
 		// Step 5: Fill Caption & React 18 pickers
 		evalScript := `(title, targetDay, targetMonth, targetHour, targetMin) => {
@@ -311,9 +311,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 
 	// Step 6: Click Schedule / Post Button with Selector Fallback Matrix
 	if isPublishNow {
-		log("cdp", "Bấm nút Đăng ngay (Post Now) hoàn tất tải lên TikTok...")
+		log("cdp", "Clicking Post Now button on TikTok Studio...")
 	} else {
-		log("cdp", "Bấm nút Schedule hoàn tất lên lịch TikTok...")
+		log("cdp", "Clicking Schedule button on TikTok Studio...")
 	}
 	scheduleSelectors := []string{
 		"button[data-e2e=\"post_video_button\"]",
@@ -331,7 +331,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	}
 
 	if scheduleBtn == nil {
-		return fmt.Errorf("không tìm thấy nút Post/Schedule của TikTok Studio")
+		return fmt.Errorf("failed to locate Post/Schedule button on TikTok Studio")
 	}
 
 	_ = scheduleBtn.ScrollIntoView()
@@ -339,9 +339,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	_ = scheduleBtn.Click(proto.InputMouseButtonLeft, 1)
 
 	if isPublishNow {
-		log("info", "⏳ Đã bấm Đăng ngay (Post Now), chờ xác nhận từ TikTok Studio...")
+		log("info", "⏳ Clicked Post Now, awaiting TikTok Studio confirmation...")
 	} else {
-		log("info", "⏳ Đã bấm Schedule, chờ xác nhận từ TikTok Studio...")
+		log("info", "⏳ Clicked Schedule, awaiting TikTok Studio confirmation...")
 	}
 
 	// Step 7: Wait for confirmation (redirect or modal)
@@ -423,7 +423,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			return false;
 		}`)
 		if res != nil && res.Value.Bool() {
-			log("info", "Đã tự động xác nhận popup 'Post now' / 'Post anyway' (bỏ qua kiểm tra bản quyền dở dang).")
+			log("info", "Auto-confirmed 'Post now' / 'Post anyway' popup (bypassing in-progress copyright check).")
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -463,13 +463,13 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	}
 
 	if !submitted {
-		return fmt.Errorf("TikTok chưa phản hồi thành công sau 60 giây")
+		return fmt.Errorf("TikTok Studio did not confirm success within 60 seconds")
 	}
 
 	if isPublishNow {
-		log("success", fmt.Sprintf("🎉 Đăng TikTok thành công (Publish Now): %s", item.CustomTitle))
+		log("success", fmt.Sprintf("🎉 TikTok published successfully (Publish Now): %s", item.CustomTitle))
 	} else {
-		log("success", fmt.Sprintf("🎉 Lên lịch TikTok thành công: %s lúc %s", item.ScheduledDate, item.ScheduledTime))
+		log("success", fmt.Sprintf("🎉 TikTok scheduled successfully: %s at %s", item.ScheduledDate, item.ScheduledTime))
 	}
 	return nil
 }

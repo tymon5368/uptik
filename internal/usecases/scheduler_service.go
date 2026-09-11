@@ -75,7 +75,7 @@ func (s *BackgroundSchedulerService) Start(parentCtx context.Context) {
 	s.isRunning = true
 	s.mu.Unlock()
 
-	s.Log("info", "Khởi động Background Scheduler Service (kiểm tra khung giờ định kỳ 30s)")
+	s.Log("info", "Starting Background Scheduler Service (checking slots every 30s)")
 
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -87,7 +87,7 @@ func (s *BackgroundSchedulerService) Start(parentCtx context.Context) {
 				s.mu.Lock()
 				s.isRunning = false
 				s.mu.Unlock()
-				s.Log("info", "Đã dừng Background Scheduler Service")
+				s.Log("info", "Background Scheduler Service stopped")
 				return
 			case now := <-ticker.C:
 				s.checkAndTrigger(now)
@@ -166,7 +166,7 @@ func (s *BackgroundSchedulerService) checkAndTrigger(now time.Time) {
 		return
 	}
 
-	s.Log("info", fmt.Sprintf("⏰ ĐÃ ĐẾN KHUNG GIỜ: %s (%s)! Bắt đầu quy trình tự động đăng ngay (Publish Now)...", matchedHour, curTimeStr))
+	s.Log("info", fmt.Sprintf("⏰ REACHED SCHEDULED SLOT: %s (%s)! Initiating Publish Now execution...", matchedHour, curTimeStr))
 
 	// Scan folder for next video
 	if s.scanUC == nil || s.triggerUpload == nil {
@@ -175,8 +175,8 @@ func (s *BackgroundSchedulerService) checkAndTrigger(now time.Time) {
 
 	items, err := s.scanUC.Execute(st.VideoFolder, st.DefaultTag)
 	if err != nil || len(items) == 0 {
-		s.Log("warn", fmt.Sprintf("Không tìm thấy video nào để đăng trong thư mục: %s", st.VideoFolder))
-		s.Notify("Khung giờ đăng tự động", fmt.Sprintf("Đã đến khung giờ %s nhưng không còn video nào trong thư mục!", matchedHour))
+		s.Log("warn", fmt.Sprintf("No pending videos found to publish in folder: %s", st.VideoFolder))
+		s.Notify("Scheduled Auto Upload", fmt.Sprintf("Reached scheduled slot %s but no videos remain in source folder!", matchedHour))
 		return
 	}
 
@@ -187,11 +187,11 @@ func (s *BackgroundSchedulerService) checkAndTrigger(now time.Time) {
 	targetVideo.ScheduledTime = matchedHour
 	targetVideo.GoldenHourSlot = domain.GetHourLabel(matchedHour)
 
-	s.Log("info", fmt.Sprintf("🎬 Chọn video tự động đăng: %s (Dung lượng: %s)", targetVideo.CustomTitle, targetVideo.FileSizeHuman))
-	s.Notify("Bắt đầu tự động đăng video", fmt.Sprintf("Khung giờ %s: Đang đăng video '%s' lên %d kênh...", matchedHour, targetVideo.CustomTitle, len(st.EnabledChannels)))
+	s.Log("info", fmt.Sprintf("🎬 Auto-selected video for Publish Now: %s (Size: %s)", targetVideo.CustomTitle, targetVideo.FileSizeHuman))
+	s.Notify("Starting Automated Upload", fmt.Sprintf("Slot %s: Uploading '%s' to %d channels...", matchedHour, targetVideo.CustomTitle, len(st.EnabledChannels)))
 
 	if err := s.triggerUpload([]domain.VideoItem{targetVideo}, st.EnabledChannels); err != nil {
-		s.Log("error", fmt.Sprintf("Lỗi khi kích hoạt upload tự động: %v", err))
+		s.Log("error", fmt.Sprintf("Error triggering automated upload: %v", err))
 	}
 }
 
@@ -209,16 +209,16 @@ func (s *BackgroundSchedulerService) GetNextSlotStatus(st domain.Settings) (next
 // TriggerManual immediately triggers an auto-upload for the next video
 func (s *BackgroundSchedulerService) TriggerManual(st domain.Settings) error {
 	if s.isUploadingFn != nil && s.isUploadingFn() {
-		return fmt.Errorf("hệ thống đang trong tiến trình upload video khác")
+		return fmt.Errorf("system is already uploading another video")
 	}
 
 	if s.scanUC == nil || s.triggerUpload == nil {
-		return fmt.Errorf("dịch vụ quét hoặc upload chưa sẵn sàng")
+		return fmt.Errorf("scan or upload service not ready")
 	}
 
 	items, err := s.scanUC.Execute(st.VideoFolder, st.DefaultTag)
 	if err != nil || len(items) == 0 {
-		return fmt.Errorf("không có video nào trong thư mục %s", st.VideoFolder)
+		return fmt.Errorf("no videos found in folder %s", st.VideoFolder)
 	}
 
 	now := time.Now()
@@ -229,10 +229,10 @@ func (s *BackgroundSchedulerService) TriggerManual(st domain.Settings) error {
 	targetVideo.PublishMode = domain.PublishModePublishNow
 	targetVideo.ScheduledDate = todayStr
 	targetVideo.ScheduledTime = timeStr
-	targetVideo.GoldenHourSlot = "Thủ công (Ngay bây giờ)"
+	targetVideo.GoldenHourSlot = "Manual (Immediate)"
 
-	s.Log("info", fmt.Sprintf("⚡ Kích hoạt thủ công Đăng ngay: %s", targetVideo.CustomTitle))
-	s.Notify("Kích hoạt đăng ngay", fmt.Sprintf("Đang tiến hành upload video: %s", targetVideo.CustomTitle))
+	s.Log("info", fmt.Sprintf("⚡ Manual instant upload triggered: %s", targetVideo.CustomTitle))
+	s.Notify("Instant Upload Triggered", fmt.Sprintf("Uploading video: %s", targetVideo.CustomTitle))
 
 	return s.triggerUpload([]domain.VideoItem{targetVideo}, st.EnabledChannels)
 }

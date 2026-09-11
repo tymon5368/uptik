@@ -99,7 +99,7 @@ export namespace domain {
 	        this.publishMode = source["publishMode"];
 	        this.autoUploadEnabled = source["autoUploadEnabled"];
 	        this.missedSlotPolicy = source["missedSlotPolicy"];
-	        this.locale = source["locale"] || "en";
+	        this.locale = source["locale"];
 	    }
 	}
 	export class VideoItem {
@@ -233,11 +233,11 @@ export namespace updater {
 	    assetSize: number;
 	    expectedChecksum: string;
 	    isSupported: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.available = source["available"];

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Languages, Check, ChevronDown } from 'lucide-svelte';
   import { i18n, SUPPORTED_LOCALES_LIST, type SupportedLocale } from './i18n.svelte';
+  import * as m from '$lib/paraglide/messages.js';
 
   interface Props {
     onLocaleChange?: (locale: SupportedLocale) => void;
@@ -39,8 +40,8 @@
   <button
     type="button"
     onclick={() => (isOpen = !isOpen)}
-    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 text-xs font-medium text-neutral-300 hover:text-white transition shadow-sm"
-    title="Change Language / Ngôn ngữ"
+    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900/90 border border-neutral-800 hover:border-neutral-700 text-xs font-medium text-neutral-300 hover:text-white transition shadow-sm cursor-pointer"
+    title={m.settings_language()}
     aria-haspopup="true"
     aria-expanded={isOpen}
   >
@@ -60,7 +61,7 @@
       role="menu"
     >
       <div class="px-2 py-1 mb-1 border-b border-neutral-800/80 text-[10px] uppercase font-bold tracking-wider text-neutral-500">
-        Select Language
+        {m.settings_language()}
       </div>
 
       {#each SUPPORTED_LOCALES_LIST as loc}
