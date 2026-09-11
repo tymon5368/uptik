@@ -28,6 +28,8 @@ export interface Settings {
   chromePath: string;
   defaultTag: string;
   goldenHours: string[];
+  scheduleGoldenHours: string[];
+  publishNowGoldenHours: string[];
   maxDays: number;
   headless: boolean;
   cdpPort: number;
@@ -38,6 +40,7 @@ export interface Settings {
   publishMode: 'schedule' | 'publish_now';
   autoUploadEnabled: boolean;
   missedSlotPolicy: string;
+  locale: string;
 }
 
 export interface SchedulerStatus {
@@ -49,6 +52,8 @@ export interface SchedulerStatus {
   remainingSec: number;
   slotLabel: string;
   goldenHours: string[];
+  scheduleGoldenHours?: string[];
+  publishNowGoldenHours?: string[];
 }
 
 export interface HistoryRecord {

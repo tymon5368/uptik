@@ -134,17 +134,20 @@ func (s *Storage) Load() (domain.Settings, error) {
 		ChromeUserDataDir: "/home/arch/.config/google-chrome-mcp",
 		ChromePath:        "/opt/google/chrome/chrome",
 		DefaultTag:        "#phimbop",
-		GoldenHours:       []string{"11:30", "18:30", "21:30"},
-		MaxDays:           30,
-		Headless:          false,
-		CdpPort:           9222,
-		EnabledChannels:   []string{"tiktok", "youtube"},
-		CloseToTray:       true,
-		AutoStart:         false,
-		StartHidden:       true,
-		PublishMode:       domain.PublishModeSchedule,
-		AutoUploadEnabled: false,
-		MissedSlotPolicy:  "skip",
+		GoldenHours:           []string{"11:30", "18:30", "21:30"},
+		ScheduleGoldenHours:   []string{"11:30", "18:30", "21:30"},
+		PublishNowGoldenHours: []string{"07:30", "11:30", "14:30", "18:30", "21:30"},
+		MaxDays:               30,
+		Headless:              false,
+		CdpPort:               9222,
+		EnabledChannels:       []string{"tiktok", "youtube"},
+		CloseToTray:           true,
+		AutoStart:             false,
+		StartHidden:           true,
+		PublishMode:           domain.PublishModeSchedule,
+		AutoUploadEnabled:     false,
+		MissedSlotPolicy:      "skip",
+		Locale:                "en",
 	}
 
 	var val string
@@ -170,7 +173,32 @@ func (s *Storage) Load() (domain.Settings, error) {
 	if loaded.MissedSlotPolicy == "" {
 		loaded.MissedSlotPolicy = "skip"
 	}
-	loaded.GoldenHours = domain.ValidateAndSortHours(loaded.GoldenHours)
+	if loaded.Locale == "" {
+		loaded.Locale = "en"
+	}
+
+	if len(loaded.ScheduleGoldenHours) == 0 {
+		if len(loaded.GoldenHours) > 0 && loaded.PublishMode == domain.PublishModeSchedule {
+			loaded.ScheduleGoldenHours = loaded.GoldenHours
+		} else {
+			loaded.ScheduleGoldenHours = []string{"11:30", "18:30", "21:30"}
+		}
+	}
+	if len(loaded.PublishNowGoldenHours) == 0 {
+		if len(loaded.GoldenHours) > 0 && loaded.PublishMode == domain.PublishModePublishNow {
+			loaded.PublishNowGoldenHours = loaded.GoldenHours
+		} else {
+			loaded.PublishNowGoldenHours = []string{"07:30", "11:30", "14:30", "18:30", "21:30"}
+		}
+	}
+	loaded.ScheduleGoldenHours = domain.ValidateAndSortHours(loaded.ScheduleGoldenHours)
+	loaded.PublishNowGoldenHours = domain.ValidateAndSortHours(loaded.PublishNowGoldenHours)
+
+	if loaded.PublishMode == domain.PublishModePublishNow {
+		loaded.GoldenHours = loaded.PublishNowGoldenHours
+	} else {
+		loaded.GoldenHours = loaded.ScheduleGoldenHours
+	}
 	return loaded, nil
 }
 

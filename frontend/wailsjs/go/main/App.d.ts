@@ -78,4 +78,6 @@ export function TriggerAutoUploadNow():Promise<void>;
 
 export function UpdateGoldenHours(arg1:Array<string>):Promise<void>;
  
+export function UpdateModeGoldenHours(arg1:string,arg2:Array<string>):Promise<void>;
+
 export function RestartApp():Promise<void>;

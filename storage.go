@@ -25,17 +25,20 @@ func GetDefaultSettings() Settings {
 		ChromeUserDataDir: DefaultUserData,
 		ChromePath:        DefaultChrome,
 		DefaultTag:        "#phimbop",
-		GoldenHours:       []string{"11:30", "18:30", "21:30"},
-		MaxDays:           30,
-		Headless:          false,
-		CdpPort:           9222,
-		EnabledChannels:   []string{"tiktok", "youtube"},
-		CloseToTray:       true,
-		AutoStart:         false,
-		StartHidden:       true,
-		PublishMode:       domain.PublishModeSchedule,
-		AutoUploadEnabled: false,
-		MissedSlotPolicy:  "skip",
+		GoldenHours:           []string{"11:30", "18:30", "21:30"},
+		ScheduleGoldenHours:   []string{"11:30", "18:30", "21:30"},
+		PublishNowGoldenHours: []string{"07:30", "11:30", "14:30", "18:30", "21:30"},
+		MaxDays:               30,
+		Headless:              false,
+		CdpPort:               9222,
+		EnabledChannels:       []string{"tiktok", "youtube"},
+		CloseToTray:           true,
+		AutoStart:             false,
+		StartHidden:           true,
+		PublishMode:           domain.PublishModeSchedule,
+		AutoUploadEnabled:     false,
+		MissedSlotPolicy:      "skip",
+		Locale:                "en",
 	}
 }
 
@@ -54,7 +57,32 @@ func LoadSettings() Settings {
 	if s.MissedSlotPolicy == "" {
 		s.MissedSlotPolicy = "skip"
 	}
-	s.GoldenHours = domain.ValidateAndSortHours(s.GoldenHours)
+	if s.Locale == "" {
+		s.Locale = "en"
+	}
+
+	if len(s.ScheduleGoldenHours) == 0 {
+		if len(s.GoldenHours) > 0 && s.PublishMode == domain.PublishModeSchedule {
+			s.ScheduleGoldenHours = s.GoldenHours
+		} else {
+			s.ScheduleGoldenHours = []string{"11:30", "18:30", "21:30"}
+		}
+	}
+	if len(s.PublishNowGoldenHours) == 0 {
+		if len(s.GoldenHours) > 0 && s.PublishMode == domain.PublishModePublishNow {
+			s.PublishNowGoldenHours = s.GoldenHours
+		} else {
+			s.PublishNowGoldenHours = []string{"07:30", "11:30", "14:30", "18:30", "21:30"}
+		}
+	}
+	s.ScheduleGoldenHours = domain.ValidateAndSortHours(s.ScheduleGoldenHours)
+	s.PublishNowGoldenHours = domain.ValidateAndSortHours(s.PublishNowGoldenHours)
+
+	if s.PublishMode == domain.PublishModePublishNow {
+		s.GoldenHours = s.PublishNowGoldenHours
+	} else {
+		s.GoldenHours = s.ScheduleGoldenHours
+	}
 	return s
 }
 

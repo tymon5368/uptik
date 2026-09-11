@@ -215,10 +215,14 @@ func (a *App) GenerateSlots(items []domain.VideoItem, startDateStr string) []dom
 			startDate = t
 		}
 	}
-	if a.schedUC != nil {
-		return a.schedUC.Execute(items, a.settings.GoldenHours, a.settings.MaxDays, startDate)
+	schedHours := a.settings.ScheduleGoldenHours
+	if len(schedHours) == 0 {
+		schedHours = a.settings.GoldenHours
 	}
-	return AssignScheduleSlots(items, a.settings.GoldenHours, a.settings.MaxDays, startDate)
+	if a.schedUC != nil {
+		return a.schedUC.Execute(items, schedHours, a.settings.MaxDays, startDate)
+	}
+	return AssignScheduleSlots(items, schedHours, a.settings.MaxDays, startDate)
 }
 
 func (a *App) GetHistory() []domain.HistoryRecord {
@@ -613,14 +617,16 @@ func (a *App) GetSchedulerStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"isRunning":         isRunning,
-		"autoUploadEnabled": st.AutoUploadEnabled,
-		"publishMode":       st.PublishMode,
-		"nextDate":          nextDate,
-		"nextTime":          nextTime,
-		"remainingSec":      remainingSec,
-		"slotLabel":         slotLabel,
-		"goldenHours":       st.GoldenHours,
+		"isRunning":             isRunning,
+		"autoUploadEnabled":     st.AutoUploadEnabled,
+		"publishMode":           st.PublishMode,
+		"nextDate":              nextDate,
+		"nextTime":              nextTime,
+		"remainingSec":          remainingSec,
+		"slotLabel":             slotLabel,
+		"goldenHours":           st.GoldenHours,
+		"scheduleGoldenHours":   st.ScheduleGoldenHours,
+		"publishNowGoldenHours": st.PublishNowGoldenHours,
 	}
 }
 
@@ -646,6 +652,15 @@ func (a *App) SetPublishMode(mode string) error {
 	a.mu.Lock()
 	s := a.settings
 	s.PublishMode = domain.PublishMode(mode)
+	if s.PublishMode == domain.PublishModePublishNow {
+		if len(s.PublishNowGoldenHours) > 0 {
+			s.GoldenHours = s.PublishNowGoldenHours
+		}
+	} else {
+		if len(s.ScheduleGoldenHours) > 0 {
+			s.GoldenHours = s.ScheduleGoldenHours
+		}
+	}
 	a.settings = s
 	a.mu.Unlock()
 
@@ -665,12 +680,39 @@ func (a *App) TriggerAutoUploadNow() error {
 	return sched.TriggerManual(st)
 }
 
-// UpdateGoldenHours updates and sorts configured schedule hours
+// UpdateGoldenHours updates and sorts configured schedule hours for the active publish mode
 func (a *App) UpdateGoldenHours(hours []string) error {
 	valid := domain.ValidateAndSortHours(hours)
 	a.mu.Lock()
 	s := a.settings
 	s.GoldenHours = valid
+	if s.PublishMode == domain.PublishModePublishNow {
+		s.PublishNowGoldenHours = valid
+	} else {
+		s.ScheduleGoldenHours = valid
+	}
+	a.settings = s
+	a.mu.Unlock()
+
+	return a.SaveSettings(s)
+}
+
+// UpdateModeGoldenHours updates hours specifically for the designated publish mode
+func (a *App) UpdateModeGoldenHours(mode string, hours []string) error {
+	valid := domain.ValidateAndSortHours(hours)
+	a.mu.Lock()
+	s := a.settings
+	if domain.PublishMode(mode) == domain.PublishModePublishNow {
+		s.PublishNowGoldenHours = valid
+		if s.PublishMode == domain.PublishModePublishNow {
+			s.GoldenHours = valid
+		}
+	} else {
+		s.ScheduleGoldenHours = valid
+		if s.PublishMode == domain.PublishModeSchedule || s.PublishMode == "" {
+			s.GoldenHours = valid
+		}
+	}
 	a.settings = s
 	a.mu.Unlock()
 

@@ -6,6 +6,8 @@ uptik
 *.db
 *.db-shm
 *.db-wal
+settings.json
+tiktok_schedule_history.json
 .DS_Store
 Gemini_Generated_Image_*
 

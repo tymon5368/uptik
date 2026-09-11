@@ -127,7 +127,11 @@ func (s *BackgroundSchedulerService) checkAndTrigger(now time.Time) {
 		return
 	}
 
-	hours := domain.ValidateAndSortHours(st.GoldenHours)
+	targetHours := st.PublishNowGoldenHours
+	if len(targetHours) == 0 {
+		targetHours = st.GoldenHours
+	}
+	hours := domain.ValidateAndSortHours(targetHours)
 	todayStr := now.Format("2006-01-02")
 	curTimeStr := now.Format("15:04")
 
@@ -193,7 +197,11 @@ func (s *BackgroundSchedulerService) checkAndTrigger(now time.Time) {
 
 // GetNextSlotStatus returns information about the next upcoming slot
 func (s *BackgroundSchedulerService) GetNextSlotStatus(st domain.Settings) (nextDate, nextTime string, remainingSec int, slotLabel string) {
-	hours := domain.ValidateAndSortHours(st.GoldenHours)
+	targetHours := st.PublishNowGoldenHours
+	if len(targetHours) == 0 {
+		targetHours = st.GoldenHours
+	}
+	hours := domain.ValidateAndSortHours(targetHours)
 	d, h, rem := domain.GetNextScheduledSlot(hours, time.Now())
 	return d, h, int(rem.Seconds()), domain.GetHourLabel(h)
 }

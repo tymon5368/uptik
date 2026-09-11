@@ -73,6 +73,9 @@
   import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
   import type { VideoItem, Settings, HistoryRecord, LogEntry, UploadProgress } from './lib/types';
   import type { updater } from '../wailsjs/go/models';
+  import * as m from '$lib/paraglide/messages.js';
+  import { i18n, type SupportedLocale } from './lib/i18n.svelte';
+  import LanguageSwitcher from './lib/LanguageSwitcher.svelte';
   import logoMark from './assets/images/logo-mark.png';
 
   const platforms = [
@@ -89,6 +92,8 @@
     chromePath: '/opt/google/chrome/chrome',
     defaultTag: '#phimbop',
     goldenHours: ['11:30', '18:30', '21:30'],
+    scheduleGoldenHours: ['11:30', '18:30', '21:30'],
+    publishNowGoldenHours: ['07:30', '11:30', '14:30', '18:30', '21:30'],
     maxDays: 30,
     headless: false,
     cdpPort: 9222,
@@ -98,7 +103,8 @@
     startHidden: true,
     publishMode: 'schedule',
     autoUploadEnabled: false,
-    missedSlotPolicy: 'skip'
+    missedSlotPolicy: 'skip',
+    locale: 'en'
   });
 
   let schedulerStatus = $state<{
@@ -110,6 +116,8 @@
     remainingSec: number;
     slotLabel: string;
     goldenHours: string[];
+    scheduleGoldenHours?: string[];
+    publishNowGoldenHours?: string[];
   }>({
     isRunning: false,
     autoUploadEnabled: false,
@@ -118,8 +126,16 @@
     nextTime: '',
     remainingSec: 0,
     slotLabel: '',
-    goldenHours: ['11:30', '18:30', '21:30']
+    goldenHours: ['11:30', '18:30', '21:30'],
+    scheduleGoldenHours: ['11:30', '18:30', '21:30'],
+    publishNowGoldenHours: ['07:30', '11:30', '14:30', '18:30', '21:30']
   });
+
+  let activeHours = $derived(
+    settings.publishMode === 'publish_now'
+      ? (settings.publishNowGoldenHours?.length ? settings.publishNowGoldenHours : settings.goldenHours)
+      : (settings.scheduleGoldenHours?.length ? settings.scheduleGoldenHours : settings.goldenHours)
+  );
 
   let newSlotTime = $state<string>('09:00');
   let countdownDisplay = $state<string>('');
@@ -208,14 +224,21 @@
       if (s && s.videoFolder) {
         settings = {
           ...s,
+          goldenHours: s.goldenHours ?? ['11:30', '18:30', '21:30'],
+          scheduleGoldenHours: s.scheduleGoldenHours && s.scheduleGoldenHours.length > 0 ? s.scheduleGoldenHours : (s.publishMode === 'schedule' && s.goldenHours?.length ? s.goldenHours : ['11:30', '18:30', '21:30']),
+          publishNowGoldenHours: s.publishNowGoldenHours && s.publishNowGoldenHours.length > 0 ? s.publishNowGoldenHours : (s.publishMode === 'publish_now' && s.goldenHours?.length ? s.goldenHours : ['07:30', '11:30', '14:30', '18:30', '21:30']),
           enabledChannels: s.enabledChannels && s.enabledChannels.length > 0 ? s.enabledChannels : ['tiktok', 'youtube'],
           autoStart: s.autoStart ?? false,
           closeToTray: s.closeToTray ?? true,
           startHidden: s.startHidden ?? true,
           publishMode: (s.publishMode === 'publish_now' ? 'publish_now' : 'schedule'),
           autoUploadEnabled: s.autoUploadEnabled ?? false,
-          missedSlotPolicy: s.missedSlotPolicy || 'skip'
+          missedSlotPolicy: s.missedSlotPolicy || 'skip',
+          locale: s.locale || 'en'
         };
+        if (s.locale) {
+          i18n.set(s.locale as SupportedLocale);
+        }
       }
       await refreshVideos();
       await refreshHistory();
@@ -251,7 +274,8 @@
       return;
     }
     try {
-      addLog('info', `Tạo lịch tự động cho ${videos.length} video theo 3 khung giờ vàng...`);
+      const slotCount = settings.scheduleGoldenHours?.length || 3;
+      addLog('info', `Tạo lịch tự động cho ${videos.length} video theo ${slotCount} khung giờ vàng...`);
       const scheduled = await GenerateSlots(videos as any, '');
       videos = (scheduled as unknown as VideoItem[]) || [];
       addLog('success', `Đã phân bổ lịch thành công! Số video sẵn sàng: ${readyCount}`);
@@ -384,8 +408,14 @@
     }
   }
 
+  async function handleLocaleChange(loc: SupportedLocale) {
+    settings.locale = loc;
+    i18n.set(loc);
+    await handleSaveSettings();
+  }
+
   async function handleQuitApp() {
-    if (confirm('Bạn có chắc chắn muốn thoát hoàn toàn UpTik? Các tiến trình đang chạy ngầm sẽ dừng lại.')) {
+    if (confirm(m.log_quit_confirm())) {
       try {
         await QuitApp();
       } catch (err) {
@@ -436,13 +466,13 @@
     if (parts.length !== 2) return timeStr;
     const hour = parseInt(parts[0], 10);
     if (isNaN(hour)) return timeStr;
-    let period = 'Sáng';
-    if (hour < 6) period = 'Đêm';
-    else if (hour < 11) period = 'Sáng';
-    else if (hour < 14) period = 'Trưa';
-    else if (hour < 18) period = 'Chiều';
-    else if (hour < 22) period = 'Tối';
-    else period = 'Đêm';
+    let period = m.slot_morning();
+    if (hour < 6) period = m.slot_night();
+    else if (hour < 11) period = m.slot_morning();
+    else if (hour < 14) period = m.slot_noon();
+    else if (hour < 18) period = m.slot_afternoon();
+    else if (hour < 22) period = m.slot_evening();
+    else period = m.slot_night();
     return `${timeStr} (${period})`;
   }
 
@@ -458,7 +488,9 @@
           nextTime: status.nextTime ?? '',
           remainingSec: status.remainingSec ?? 0,
           slotLabel: status.slotLabel ?? '',
-          goldenHours: status.goldenHours ?? settings.goldenHours
+          goldenHours: status.goldenHours ?? settings.goldenHours,
+          scheduleGoldenHours: status.scheduleGoldenHours ?? settings.scheduleGoldenHours,
+          publishNowGoldenHours: status.publishNowGoldenHours ?? settings.publishNowGoldenHours
         };
         formatCountdown(schedulerStatus.remainingSec);
       }
@@ -498,7 +530,18 @@
   async function handleSetPublishMode(mode: 'schedule' | 'publish_now') {
     try {
       settings.publishMode = mode;
+      if (mode === 'publish_now' && settings.publishNowGoldenHours && settings.publishNowGoldenHours.length > 0) {
+        settings.goldenHours = [...settings.publishNowGoldenHours];
+      } else if (mode === 'schedule' && settings.scheduleGoldenHours && settings.scheduleGoldenHours.length > 0) {
+        settings.goldenHours = [...settings.scheduleGoldenHours];
+      }
       await SetPublishMode(mode);
+      const updatedSettings = await GetSettings();
+      if (updatedSettings) {
+        if (updatedSettings.goldenHours) settings.goldenHours = updatedSettings.goldenHours;
+        if (updatedSettings.scheduleGoldenHours) settings.scheduleGoldenHours = updatedSettings.scheduleGoldenHours;
+        if (updatedSettings.publishNowGoldenHours) settings.publishNowGoldenHours = updatedSettings.publishNowGoldenHours;
+      }
       await refreshSchedulerStatus();
       addLog('info', `Đã chuyển sang chế độ: ${mode === 'publish_now' ? 'Tự Động Đăng Ngay (Publish Now)' : 'Lên Lịch Trên Nền Tảng (Schedule)'}`);
     } catch (err) {
@@ -521,32 +564,41 @@
       return;
     }
     const cleanTime = newSlotTime.trim();
-    if (settings.goldenHours.includes(cleanTime)) {
+    if (activeHours.includes(cleanTime)) {
       addLog('warn', `Khung giờ ${cleanTime} đã tồn tại trong danh sách.`);
       return;
     }
-    const updated = [...settings.goldenHours, cleanTime];
+    const updated = [...activeHours, cleanTime];
     await handleUpdateGoldenHours(updated);
   }
 
   async function handleRemoveGoldenHour(hourToRemove: string) {
-    if (settings.goldenHours.length <= 1) {
+    if (activeHours.length <= 1) {
       addLog('warn', 'Cần giữ ít nhất 1 khung giờ trong ngày.');
       return;
     }
-    const updated = settings.goldenHours.filter(h => h !== hourToRemove);
+    const updated = activeHours.filter(h => h !== hourToRemove);
     await handleUpdateGoldenHours(updated);
   }
 
   async function handleUpdateGoldenHours(hours: string[]) {
     try {
+      if (settings.publishMode === 'publish_now') {
+        settings.publishNowGoldenHours = [...hours];
+      } else {
+        settings.scheduleGoldenHours = [...hours];
+      }
+      settings.goldenHours = [...hours];
       await UpdateGoldenHours(hours);
       const updatedSettings = await GetSettings();
-      if (updatedSettings && updatedSettings.goldenHours) {
-        settings.goldenHours = updatedSettings.goldenHours;
+      if (updatedSettings) {
+        if (updatedSettings.goldenHours) settings.goldenHours = updatedSettings.goldenHours;
+        if (updatedSettings.scheduleGoldenHours) settings.scheduleGoldenHours = updatedSettings.scheduleGoldenHours;
+        if (updatedSettings.publishNowGoldenHours) settings.publishNowGoldenHours = updatedSettings.publishNowGoldenHours;
       }
       await refreshSchedulerStatus();
-      addLog('success', `Đã cập nhật danh sách khung giờ: ${settings.goldenHours.join(', ')}`);
+      const modeLabel = settings.publishMode === 'publish_now' ? 'Đăng Ngay' : 'Lên Lịch';
+      addLog('success', `Đã cập nhật khung giờ (${modeLabel}): ${hours.join(', ')}`);
     } catch (err) {
       addLog('error', `Lỗi cập nhật khung giờ: ${err}`);
     }
@@ -603,7 +655,7 @@
     }
   }
 
-  let logContainer: HTMLElement | null = null;
+  let logContainer = $state<HTMLElement | null>(null);
   $effect(() => {
     if (logs.length && autoScrollLogs && logContainer) {
       logContainer.scrollTop = logContainer.scrollHeight;
@@ -724,7 +776,8 @@
   });
 </script>
 
-<div class="min-h-screen bg-[#141414] text-white flex flex-col font-sans select-none">
+<div class="min-h-screen bg-[#141414] text-white flex flex-col font-sans select-none" dir={i18n.isRtl ? 'rtl' : 'ltr'}>
+  {#key i18n.current}
   <!-- TOP HEADER (Netflix Theme) -->
   <header class="bg-[#181818]/90 backdrop-blur border-b border-[#282828] sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
     <!-- Brand Logo -->
@@ -737,10 +790,10 @@
         />
         <div class="flex items-center gap-2">
           <span class="text-2xl font-black tracking-wider text-[#E50914] drop-shadow-[0_2px_8px_rgba(229,9,20,0.4)]">
-            UPTIK
+            {m.app_name()}
           </span>
           <span class="bg-[#E50914]/20 border border-[#E50914]/40 text-[#E50914] text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded">
-            STUDIO SCHEDULER
+            {m.app_tagline()}
           </span>
         </div>
       </div>
@@ -757,7 +810,7 @@
       <div class="flex items-center gap-3 bg-neutral-900 border border-[#E50914]/40 rounded-full px-4 py-1.5 animate-pulse shadow-[0_0_15px_rgba(229,9,20,0.25)]">
         <div class="w-2.5 h-2.5 rounded-full bg-[#E50914] animate-ping"></div>
         <span class="text-xs font-semibold text-neutral-200">
-          Đang upload: {progress.currentIndex}/{progress.totalVideos}
+          {m.uploading_progress({ current: progress.currentIndex, total: progress.totalVideos })}
         </span>
         <span class="text-xs text-neutral-400 truncate max-w-[200px]">
           {progress.currentVideo?.customTitle || ''}
@@ -772,7 +825,7 @@
         <button
           onclick={() => toggleChannel(p.id)}
           class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition border {isEnabled ? p.activeColor : 'text-neutral-500 border-transparent hover:text-neutral-300'}"
-          title="Bật/tắt phân phối video lên {p.name}"
+          title={m.platform_toggle_tooltip({ name: p.name })}
         >
           <p.icon class="w-3.5 h-3.5" />
           <span class="text-[11px]">{p.name}</span>
@@ -782,6 +835,9 @@
 
     <!-- Top Action Buttons -->
     <div class="flex items-center gap-2">
+      <!-- Language Selector -->
+      <LanguageSwitcher onLocaleChange={handleLocaleChange} />
+
       {#if updateInfo?.available}
         <button
           onclick={() => activeTab = 'settings'}
@@ -801,7 +857,7 @@
           class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
         >
           <Music2 class="w-3.5 h-3.5 text-rose-400" />
-          <span>TikTok</span>
+          <span>{m.platform_tiktok()}</span>
         </button>
         <button
           onclick={() => handleOpenPlatform('youtube')}
@@ -809,7 +865,7 @@
           class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
         >
           <PlaySquare class="w-3.5 h-3.5 text-red-500" />
-          <span>YouTube</span>
+          <span>{m.platform_youtube()}</span>
         </button>
         <button
           onclick={() => handleOpenPlatform('facebook')}
@@ -817,13 +873,13 @@
           class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
         >
           <Share2 class="w-3.5 h-3.5 text-blue-400" />
-          <span>Facebook</span>
+          <span>{m.platform_facebook()}</span>
         </button>
       </div>
 
       <button
         onclick={refreshVideos}
-        title="Quét lại thư mục video"
+        title={m.btn_scan_title()}
         class="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded border border-neutral-800 transition"
       >
         <RefreshCw class="w-4 h-4" />
@@ -831,11 +887,11 @@
 
       <button
         onclick={handleAutoSchedule}
-        title="Tự động phân bổ vào 3 khung giờ vàng cho 30 ngày tiếp theo"
+        title={m.btn_auto_schedule_title({ count: settings.scheduleGoldenHours?.length || 3 })}
         class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded transition"
       >
         <Sparkles class="w-3.5 h-3.5 text-amber-400" />
-        <span>Sinh 3 Khung Giờ</span>
+        <span>{m.btn_auto_schedule_slots({ count: settings.scheduleGoldenHours?.length || 3 })}</span>
       </button>
 
       {#if !isUploading}
@@ -845,7 +901,7 @@
           title="Bắt đầu lên lịch đa kênh ({settings.enabledChannels.join(', ')})"
         >
           <Play class="w-3.5 h-3.5 fill-current" />
-          <span>LÊN LỊCH ĐA KÊNH ({settings.enabledChannels.length})</span>
+          <span>{m.btn_schedule_multichannel({ count: settings.enabledChannels.length })}</span>
         </button>
       {:else}
         <button
@@ -853,7 +909,7 @@
           class="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 rounded transition"
         >
           <Square class="w-3.5 h-3.5 fill-current" />
-          <span>DỪNG LẠI</span>
+          <span>{m.btn_stop_upload()}</span>
         </button>
       {/if}
     </div>
@@ -865,7 +921,7 @@
       <div class="flex items-center gap-3">
         <AlertCircle class="w-5 h-5 text-amber-400 shrink-0" />
         <span class="text-sm font-medium">
-          Hệ thống phát hiện <strong>{recoveredCount}</strong> video trong hàng chờ SQLite từ phiên trước chưa upload xong.
+          {m.recovery_banner_detected({ count: recoveredCount })}
         </span>
       </div>
       <div class="flex items-center gap-3">
@@ -873,14 +929,14 @@
           onclick={handleCancelQueue}
           class="px-3 py-1.5 text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded border border-neutral-700 transition"
         >
-          Xóa Hàng Chờ Cũ
+          {m.recovery_cancel_queue()}
         </button>
         <button
           onclick={handleResumeQueue}
           class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black rounded transition shadow flex items-center gap-1.5"
         >
           <Play class="w-3.5 h-3.5 fill-current" />
-          <span>Tiếp Tục Upload ({recoveredCount} video)</span>
+          <span>{m.recovery_resume_queue({ count: recoveredCount })}</span>
         </button>
       </div>
     </div>
@@ -897,7 +953,7 @@
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
           >
             <Video class="w-4 h-4" />
-            <span>Hàng Chờ Video</span>
+            <span>{m.tab_queue()}</span>
             <span class="text-[10px] bg-black/40 px-1.5 py-0.5 rounded-full font-mono">
               {videos.length}
             </span>
@@ -908,7 +964,7 @@
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
           >
             <Calendar class="w-4 h-4" />
-            <span>Ma Trận 30 Ngày</span>
+            <span>{m.tab_matrix()}</span>
           </Tabs.Trigger>
 
           <Tabs.Trigger
@@ -916,7 +972,7 @@
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
           >
             <Layers class="w-4 h-4" />
-            <span>Lịch Sử Đã Đăng</span>
+            <span>{m.tab_history()}</span>
             <span class="text-[10px] bg-black/40 px-1.5 py-0.5 rounded-full font-mono">
               {history.length}
             </span>
@@ -927,7 +983,7 @@
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
           >
             <Terminal class="w-4 h-4" />
-            <span>Nhật Ký CDP Live</span>
+            <span>{m.tab_logs()}</span>
             {#if logs.some(l => l.level === 'error')}
               <span class="w-2 h-2 rounded-full bg-red-500"></span>
             {/if}
@@ -938,7 +994,7 @@
             class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white relative"
           >
             <SettingsIcon class="w-4 h-4" />
-            <span>Cài Đặt</span>
+            <span>{m.tab_settings()}</span>
             {#if updateInfo?.available}
               <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
             {/if}
@@ -948,20 +1004,20 @@
         <!-- Stats Chips -->
         <div class="hidden md:flex items-center gap-3 text-xs">
           <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800">
-            <span class="text-neutral-400">Sẵn sàng:</span>
+            <span class="text-neutral-400">{m.stat_ready()}:</span>
             <span class="font-bold text-emerald-400">{readyCount}</span>
           </div>
           <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800">
-            <span class="text-neutral-400">Chờ slot:</span>
+            <span class="text-neutral-400">{m.filter_pending()}:</span>
             <span class="font-bold text-amber-400">{pendingCount}</span>
           </div>
           <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-neutral-900 border border-neutral-800">
-            <span class="text-neutral-400">Thành công:</span>
+            <span class="text-neutral-400">{m.stat_scheduled()}:</span>
             <span class="font-bold text-blue-400">{scheduledCount}</span>
           </div>
           {#if errorCount > 0}
             <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-950/60 border border-red-800 text-red-300">
-              <span>Lỗi:</span>
+              <span>{m.stat_errors()}:</span>
               <span class="font-bold">{errorCount}</span>
             </div>
           {/if}
@@ -981,41 +1037,28 @@
             </div>
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-bold text-white tracking-wide uppercase">Tự Động Đăng Video Theo Khung Giờ</span>
+                <span class="text-xs font-bold text-white tracking-wide uppercase">{m.settings_auto_upload()}</span>
                 <span class="px-2 py-0.5 text-[10px] font-bold rounded-full border {schedulerStatus.autoUploadEnabled ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : 'bg-neutral-800 text-neutral-400 border-neutral-700'}">
-                  {schedulerStatus.autoUploadEnabled ? 'ĐANG BẬT (CHẠY NGẦM)' : 'ĐANG TẮT'}
+                  {schedulerStatus.autoUploadEnabled ? 'ON (BACKGROUND)' : 'OFF'}
                 </span>
                 <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
-                  Chế độ: {settings.publishMode === 'publish_now' ? 'Publish Now (Đăng ngay)' : 'Platform Schedule (Hẹn giờ)'}
+                  {settings.publishMode === 'publish_now' ? m.publish_mode_now() : m.publish_mode_schedule()}
                 </span>
               </div>
               <p class="text-xs text-neutral-400 mt-1">
                 {#if schedulerStatus.autoUploadEnabled}
-                  Khung giờ kế tiếp: <strong class="text-white font-mono text-sm">{schedulerStatus.nextTime}</strong> ({schedulerStatus.slotLabel})
+                  Next: <strong class="text-white font-mono text-sm">{schedulerStatus.nextTime}</strong> ({schedulerStatus.slotLabel})
                   {#if countdownDisplay}
-                    <span class="ml-1 text-emerald-400 font-mono font-bold">(còn {countdownDisplay})</span>
+                    <span class="ml-1 text-emerald-400 font-mono font-bold">({countdownDisplay})</span>
                   {/if}
-                  <span class="text-neutral-500 ml-1.5">• Hoạt động kể cả khi thu nhỏ khay hệ thống</span>
                 {:else}
-                  Bật chế độ này để ứng dụng tự động upload và đăng ngay khi đến các khung giờ: <span class="font-mono text-neutral-300 font-semibold">{settings.goldenHours.join(', ')}</span>
+                  {m.settings_auto_upload_desc()}: <span class="font-mono text-neutral-300 font-semibold">{(settings.publishNowGoldenHours && settings.publishNowGoldenHours.length > 0 ? settings.publishNowGoldenHours : settings.goldenHours).join(', ')}</span>
                 {/if}
               </p>
             </div>
           </div>
 
           <div class="flex items-center gap-2.5 w-full lg:w-auto justify-end flex-wrap">
-            <!-- Trigger Now Button -->
-            <button
-              type="button"
-              onclick={handleTriggerNow}
-              disabled={isUploading || videos.length === 0}
-              title="Lấy 1 video đầu hàng chờ và upload đăng ngay lập tức"
-              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 text-neutral-200 border border-neutral-700 rounded-lg transition"
-            >
-              <Zap class="w-3.5 h-3.5 text-amber-400 fill-current" />
-              <span>Đăng Ngay 1 Video</span>
-            </button>
-
             <!-- Toggle Auto Upload Switch/Button -->
             <button
               type="button"
@@ -1023,7 +1066,7 @@
               class="flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg border transition active:scale-95 {schedulerStatus.autoUploadEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-[0_2px_10px_rgba(16,185,129,0.3)]' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700'}"
             >
               <Power class="w-3.5 h-3.5" />
-              <span>{schedulerStatus.autoUploadEnabled ? 'TẮT TỰ ĐỘNG ĐĂNG' : 'BẬT TỰ ĐỘNG ĐĂNG'}</span>
+              <span>{schedulerStatus.autoUploadEnabled ? 'STOP AUTO' : 'START AUTO'}</span>
             </button>
           </div>
         </div>
@@ -1035,22 +1078,22 @@
             <input
               type="text"
               bind:value={searchQuery}
-              placeholder="Tìm kiếm theo tiêu đề hoặc tên file..."
+              placeholder={m.queue_search_placeholder()}
               class="w-full bg-[#1e1e1e] border border-neutral-700 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#E50914] transition"
             />
           </div>
 
           <div class="flex items-center gap-2 text-xs">
-            <span class="text-neutral-400">Lọc trạng thái:</span>
+            <span class="text-neutral-400">{m.col_status()}:</span>
             <select
               bind:value={statusFilter}
               class="bg-[#1e1e1e] border border-neutral-700 rounded-lg px-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-[#E50914]"
             >
-              <option value="all">Tất cả ({videos.length})</option>
-              <option value="ready">Sẵn sàng ({readyCount})</option>
-              <option value="pending">Chưa có slot ({pendingCount})</option>
-              <option value="scheduled">Đã lên lịch ({scheduledCount})</option>
-              <option value="error">Có lỗi ({errorCount})</option>
+              <option value="all">{m.filter_all()} ({videos.length})</option>
+              <option value="ready">{m.filter_ready()} ({readyCount})</option>
+              <option value="pending">{m.filter_pending()} ({pendingCount})</option>
+              <option value="scheduled">{m.filter_scheduled()} ({scheduledCount})</option>
+              <option value="error">{m.filter_error()} ({errorCount})</option>
             </select>
           </div>
         </div>
@@ -1059,15 +1102,15 @@
         {#if filteredVideos.length === 0}
           <div class="flex-1 flex flex-col items-center justify-center border border-dashed border-neutral-800 rounded-xl p-12 text-center my-8">
             <Video class="w-12 h-12 text-neutral-600 mb-3" />
-            <h3 class="text-base font-semibold text-neutral-300">Không tìm thấy video nào</h3>
+            <h3 class="text-base font-semibold text-neutral-300">{m.no_videos_found()}</h3>
             <p class="text-xs text-neutral-500 mt-1 max-w-sm">
-              Kiểm tra thư mục video trong phần Cài Đặt hoặc chọn nút "Quét lại thư mục" ở thanh điều khiển phía trên.
+              {m.no_videos_desc()}
             </p>
             <button
               onclick={handleSelectFolder}
               class="mt-4 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold rounded-lg border border-neutral-700 transition"
             >
-              Chọn Thư Mục Khác
+              {m.settings_btn_select_folder()}
             </button>
           </div>
         {:else}
@@ -1546,12 +1589,19 @@
           <div class="bg-neutral-900/80 border border-neutral-700/60 p-4 rounded-xl space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800 pb-3 gap-2">
               <div>
-                <span class="text-xs font-bold text-white flex items-center gap-2">
-                  <Clock class="w-4 h-4 text-amber-400" />
-                  <span>Quản Lý Khung Giờ Đăng Trong Ngày ({settings.goldenHours.length} Khung Giờ)</span>
-                </span>
-                <p class="text-[11px] text-neutral-400 mt-0.5">
-                  Tùy ý thêm, xóa bất kỳ khung giờ nào trong ngày. Hệ thống tự động kiểm tra và sắp xếp tăng dần.
+                <div class="flex items-center gap-2">
+                  <Clock class="w-4 h-4 {settings.publishMode === 'publish_now' ? 'text-emerald-400' : 'text-amber-400'}" />
+                  <span class="text-xs font-bold text-white">
+                    Quản Lý Khung Giờ {settings.publishMode === 'publish_now' ? 'Đăng Ngay' : 'Lên Lịch'} ({activeHours.length} Khung Giờ)
+                  </span>
+                  <span class="text-[10px] px-2 py-0.5 rounded font-semibold border {settings.publishMode === 'publish_now' ? 'bg-emerald-950/60 border-emerald-600/50 text-emerald-400' : 'bg-amber-950/60 border-amber-600/50 text-amber-400'}">
+                    {settings.publishMode === 'publish_now' ? 'Chế độ Đăng Ngay' : 'Chế độ Lên Lịch'}
+                  </span>
+                </div>
+                <p class="text-[11px] text-neutral-400 mt-1">
+                  {settings.publishMode === 'publish_now'
+                    ? 'Các khung giờ chạy ngầm để UpTik tự động lấy video và bấm Đăng ngay. Cấu hình được lưu riêng biệt cho chế độ Đăng Ngay.'
+                    : 'Các khung giờ dùng để tự động phân bổ ngày/giờ hẹn phát trên TikTok Studio, Shorts, Reels. Cấu hình được lưu riêng biệt cho chế độ Lên Lịch.'}
                 </p>
               </div>
 
@@ -1588,13 +1638,13 @@
             <!-- Current Slots Badges -->
             <div>
               <span class="block text-[11px] font-semibold text-neutral-400 mb-2">
-                Các khung giờ đang áp dụng (Bấm dấu X để xóa):
+                Các khung giờ đang áp dụng cho {settings.publishMode === 'publish_now' ? 'Đăng Ngay' : 'Lên Lịch'} (Bấm dấu X để xóa):
               </span>
               <div class="flex flex-wrap gap-2">
-                {#each settings.goldenHours as h}
+                {#each activeHours as h}
                   {@const label = getSlotLabel(h)}
                   <div class="flex items-center gap-2 px-3 py-1.5 bg-neutral-800/90 border border-neutral-700 hover:border-neutral-500 rounded-lg text-xs font-semibold text-white transition group">
-                    <Clock class="w-3.5 h-3.5 text-amber-400" />
+                    <Clock class="w-3.5 h-3.5 {settings.publishMode === 'publish_now' ? 'text-emerald-400' : 'text-amber-400'}" />
                     <span class="font-mono">{label}</span>
                     <button
                       type="button"
@@ -1871,7 +1921,7 @@
               title="Đóng hoàn toàn tiến trình ứng dụng"
             >
               <Power class="w-3.5 h-3.5" />
-              <span>Thoát Ứng Dụng Hoàn Toàn</span>
+              <span>{m.settings_btn_quit()}</span>
             </button>
 
             <button
@@ -1879,7 +1929,7 @@
               class="px-5 py-2 bg-[#E50914] hover:bg-[#F40612] text-xs font-bold text-white rounded-lg shadow-md transition flex items-center gap-2"
             >
               <Save class="w-3.5 h-3.5" />
-              <span>Lưu Cài Đặt</span>
+              <span>{m.settings_btn_save()}</span>
             </button>
           </div>
         </div>
@@ -1902,16 +1952,16 @@
 
           <Dialog.Title class="text-base font-bold text-white flex items-center gap-2">
             <Edit3 class="w-4 h-4 text-[#E50914]" />
-            <span>Chỉnh Sửa Video & Khung Giờ Đăng</span>
+            <span>{m.dialog_edit_title()}</span>
           </Dialog.Title>
 
           <Dialog.Description class="text-xs text-neutral-400">
-            Tùy biến tiêu đề/caption chuẩn SEO và chọn thời gian lên lịch trên TikTok Studio.
+            {m.dialog_edit_subtitle()}
           </Dialog.Description>
 
           <div class="space-y-3.5 pt-2">
             <div>
-              <span class="block text-xs font-medium text-neutral-300 mb-1">Tiêu Đề / Caption (Hỗ trợ Draft.js)</span>
+              <span class="block text-xs font-medium text-neutral-300 mb-1">{m.dialog_field_title()}</span>
               <textarea
                 rows="3"
                 bind:value={editTitle}
@@ -1921,7 +1971,7 @@
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <span class="block text-xs font-medium text-neutral-300 mb-1">Ngày Lên Lịch</span>
+                <span class="block text-xs font-medium text-neutral-300 mb-1">{m.dialog_field_date()}</span>
                 <input
                   type="date"
                   bind:value={editDate}
@@ -1930,14 +1980,14 @@
               </div>
 
               <div>
-                <span class="block text-xs font-medium text-neutral-300 mb-1">Khung Giờ</span>
+                <span class="block text-xs font-medium text-neutral-300 mb-1">{m.dialog_field_time()}</span>
                 <select
                   bind:value={editTime}
                   class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#E50914]"
                 >
-                  <option value="11:30">11:30 (Trưa)</option>
-                  <option value="18:30">18:30 (Chiều)</option>
-                  <option value="21:30">21:30 (Tối)</option>
+                  {#each settings.goldenHours as h}
+                    <option value={h}>{getSlotLabel(h)}</option>
+                  {/each}
                 </select>
               </div>
             </div>
@@ -1948,17 +1998,18 @@
               onclick={() => isDialogOpen = false}
               class="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition"
             >
-              Hủy
+              {m.dialog_btn_cancel()}
             </button>
             <button
               onclick={saveEditedVideo}
               class="px-4 py-2 text-xs font-bold text-white bg-[#E50914] hover:bg-[#F40612] rounded-lg shadow transition"
             >
-              Lưu Thay Đổi
+              {m.dialog_btn_save()}
             </button>
           </div>
         </Dialog.Content>
       </Dialog.Positioner>
     </Portal>
   </Dialog.Root>
+  {/key}
 </div>

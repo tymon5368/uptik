@@ -62,6 +62,8 @@ export namespace domain {
 	    chromePath: string;
 	    defaultTag: string;
 	    goldenHours: string[];
+	    scheduleGoldenHours: string[];
+	    publishNowGoldenHours: string[];
 	    maxDays: number;
 	    headless: boolean;
 	    cdpPort: number;
@@ -72,6 +74,7 @@ export namespace domain {
 	    publishMode: string;
 	    autoUploadEnabled: boolean;
 	    missedSlotPolicy: string;
+	    locale: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -84,6 +87,8 @@ export namespace domain {
 	        this.chromePath = source["chromePath"];
 	        this.defaultTag = source["defaultTag"];
 	        this.goldenHours = source["goldenHours"];
+	        this.scheduleGoldenHours = source["scheduleGoldenHours"];
+	        this.publishNowGoldenHours = source["publishNowGoldenHours"];
 	        this.maxDays = source["maxDays"];
 	        this.headless = source["headless"];
 	        this.cdpPort = source["cdpPort"];
@@ -94,6 +99,7 @@ export namespace domain {
 	        this.publishMode = source["publishMode"];
 	        this.autoUploadEnabled = source["autoUploadEnabled"];
 	        this.missedSlotPolicy = source["missedSlotPolicy"];
+	        this.locale = source["locale"] || "en";
 	    }
 	}
 	export class VideoItem {
