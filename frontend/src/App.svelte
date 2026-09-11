@@ -40,7 +40,8 @@
     Download,
     RotateCcw,
     CheckCircle,
-    Languages
+    Languages,
+    ChevronDown
   } from 'lucide-svelte';
 
   import {
@@ -91,7 +92,7 @@
     videoFolder: '/home/arch/Downloads/Movie Nights - Uploads from Movie Nights',
     chromeUserDataDir: '/home/arch/.config/google-chrome-mcp',
     chromePath: '/opt/google/chrome/chrome',
-    defaultTag: '#phimbop',
+    defaultTag: '',
     goldenHours: ['11:30', '18:30', '21:30'],
     scheduleGoldenHours: ['11:30', '18:30', '21:30'],
     publishNowGoldenHours: ['07:30', '11:30', '14:30', '18:30', '21:30'],
@@ -823,7 +824,7 @@
         {@const isEnabled = settings.enabledChannels.includes(p.id)}
         <button
           onclick={() => toggleChannel(p.id)}
-          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition border {isEnabled ? p.activeColor : 'text-neutral-500 border-transparent hover:text-neutral-300'}"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition border cursor-pointer {isEnabled ? p.activeColor : 'text-neutral-500 border-transparent hover:text-neutral-300'}"
           title={m.platform_toggle_tooltip({ name: p.name })}
         >
           <p.icon class="w-3.5 h-3.5" />
@@ -840,7 +841,7 @@
       {#if updateInfo?.available}
         <button
           onclick={() => activeTab = 'settings'}
-          class="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-full transition shadow-[0_0_12px_rgba(6,182,212,0.2)] animate-pulse"
+          class="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-full transition shadow-[0_0_12px_rgba(6,182,212,0.2)] animate-pulse cursor-pointer"
           title={m.header_new_version_tooltip({ version: updateInfo.latestVersion })}
         >
           <Sparkles class="w-3.5 h-3.5 text-cyan-400" />
@@ -853,7 +854,7 @@
         <button
           onclick={() => handleOpenPlatform('tiktok')}
           title={m.header_open_chrome_platform({ platform: 'TikTok Studio' })}
-          class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
         >
           <Music2 class="w-3.5 h-3.5 text-rose-400" />
           <span>{m.platform_tiktok()}</span>
@@ -861,7 +862,7 @@
         <button
           onclick={() => handleOpenPlatform('youtube')}
           title={m.header_open_chrome_platform({ platform: 'YouTube Studio' })}
-          class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
         >
           <PlaySquare class="w-3.5 h-3.5 text-red-500" />
           <span>{m.platform_youtube()}</span>
@@ -869,7 +870,7 @@
         <button
           onclick={() => handleOpenPlatform('facebook')}
           title={m.header_open_chrome_platform({ platform: 'Meta Business Suite' })}
-          class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
         >
           <Share2 class="w-3.5 h-3.5 text-blue-400" />
           <span>{m.platform_facebook()}</span>
@@ -879,7 +880,7 @@
       <button
         onclick={refreshVideos}
         title={m.btn_scan_title()}
-        class="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded border border-neutral-800 transition"
+        class="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded border border-neutral-800 transition cursor-pointer"
       >
         <RefreshCw class="w-4 h-4" />
       </button>
@@ -887,7 +888,7 @@
       <button
         onclick={handleAutoSchedule}
         title={m.btn_auto_schedule_title({ count: settings.scheduleGoldenHours?.length || 3 })}
-        class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded transition"
+        class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded transition cursor-pointer"
       >
         <Sparkles class="w-3.5 h-3.5 text-amber-400" />
         <span>{m.btn_auto_schedule_slots({ count: settings.scheduleGoldenHours?.length || 3 })}</span>
@@ -896,7 +897,7 @@
       {#if !isUploading}
         <button
           onclick={handleStartUpload}
-          class="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-[#E50914] hover:bg-[#F40612] active:scale-95 rounded shadow-[0_2px_12px_rgba(229,9,20,0.4)] transition"
+          class="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-[#E50914] hover:bg-[#F40612] active:scale-95 rounded shadow-[0_2px_12px_rgba(229,9,20,0.4)] transition cursor-pointer"
           title={m.header_start_schedule_tooltip({ channels: settings.enabledChannels.join(', ') })}
         >
           <Play class="w-3.5 h-3.5 fill-current" />
@@ -905,7 +906,7 @@
       {:else}
         <button
           onclick={handleStopUpload}
-          class="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 rounded transition"
+          class="flex items-center gap-2 px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 active:scale-95 rounded transition cursor-pointer"
         >
           <Square class="w-3.5 h-3.5 fill-current" />
           <span>{m.btn_stop_upload()}</span>
@@ -926,13 +927,13 @@
       <div class="flex items-center gap-3">
         <button
           onclick={handleCancelQueue}
-          class="px-3 py-1.5 text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded border border-neutral-700 transition"
+          class="px-3 py-1.5 text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-neutral-300 rounded border border-neutral-700 transition cursor-pointer"
         >
           {m.recovery_cancel_queue()}
         </button>
         <button
           onclick={handleResumeQueue}
-          class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black rounded transition shadow flex items-center gap-1.5"
+          class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black rounded transition shadow flex items-center gap-1.5 cursor-pointer"
         >
           <Play class="w-3.5 h-3.5 fill-current" />
           <span>{m.recovery_resume_queue({ count: recoveredCount })}</span>
@@ -949,7 +950,7 @@
         <Tabs.List class="flex items-center gap-2 bg-neutral-900/80 p-1 rounded-lg border border-neutral-800">
           <Tabs.Trigger
             value="queue"
-            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white cursor-pointer"
           >
             <Video class="w-4 h-4" />
             <span>{m.tab_queue()}</span>
@@ -960,7 +961,7 @@
 
           <Tabs.Trigger
             value="matrix"
-            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white cursor-pointer"
           >
             <Calendar class="w-4 h-4" />
             <span>{m.tab_matrix()}</span>
@@ -968,7 +969,7 @@
 
           <Tabs.Trigger
             value="history"
-            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white cursor-pointer"
           >
             <Layers class="w-4 h-4" />
             <span>{m.tab_history()}</span>
@@ -979,7 +980,7 @@
 
           <Tabs.Trigger
             value="logs"
-            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white cursor-pointer"
           >
             <Terminal class="w-4 h-4" />
             <span>{m.tab_logs()}</span>
@@ -990,7 +991,7 @@
 
           <Tabs.Trigger
             value="settings"
-            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white relative"
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white relative cursor-pointer"
           >
             <SettingsIcon class="w-4 h-4" />
             <span>{m.tab_settings()}</span>
@@ -1062,7 +1063,7 @@
             <button
               type="button"
               onclick={() => handleToggleAutoUpload(!schedulerStatus.autoUploadEnabled)}
-              class="flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg border transition active:scale-95 {schedulerStatus.autoUploadEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-[0_2px_10px_rgba(16,185,129,0.3)]' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700'}"
+              class="flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg border transition active:scale-95 cursor-pointer {schedulerStatus.autoUploadEnabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-[0_2px_10px_rgba(16,185,129,0.3)]' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700'}"
             >
               <Power class="w-3.5 h-3.5" />
               <span>{schedulerStatus.autoUploadEnabled ? m.scheduler_btn_stop() : m.scheduler_btn_start()}</span>
@@ -1083,17 +1084,20 @@
           </div>
 
           <div class="flex items-center gap-2 text-xs">
-            <span class="text-neutral-400">{m.col_status()}:</span>
-            <select
-              bind:value={statusFilter}
-              class="bg-[#1e1e1e] border border-neutral-700 rounded-lg px-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-[#E50914]"
-            >
-              <option value="all">{m.filter_all()} ({videos.length})</option>
-              <option value="ready">{m.filter_ready()} ({readyCount})</option>
-              <option value="pending">{m.filter_pending()} ({pendingCount})</option>
-              <option value="scheduled">{m.filter_scheduled()} ({scheduledCount})</option>
-              <option value="error">{m.filter_error()} ({errorCount})</option>
-            </select>
+            <span class="text-neutral-400 font-medium">{m.col_status()}:</span>
+            <div class="relative inline-flex items-center">
+              <select
+                bind:value={statusFilter}
+                class="appearance-none bg-[#1e1e1e] hover:bg-[#262626] border border-neutral-700 hover:border-neutral-500 rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium text-white focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer transition shadow-sm"
+              >
+                <option value="all" class="bg-[#1e1e1e] text-white">{m.filter_all()} ({videos.length})</option>
+                <option value="ready" class="bg-[#1e1e1e] text-white">{m.filter_ready()} ({readyCount})</option>
+                <option value="pending" class="bg-[#1e1e1e] text-white">{m.filter_pending()} ({pendingCount})</option>
+                <option value="scheduled" class="bg-[#1e1e1e] text-white">{m.filter_scheduled()} ({scheduledCount})</option>
+                <option value="error" class="bg-[#1e1e1e] text-white">{m.filter_error()} ({errorCount})</option>
+              </select>
+              <ChevronDown class="w-3.5 h-3.5 text-neutral-400 absolute right-2.5 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -1107,7 +1111,7 @@
             </p>
             <button
               onclick={handleSelectFolder}
-              class="mt-4 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold rounded-lg border border-neutral-700 transition"
+              class="mt-4 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold rounded-lg border border-neutral-700 transition cursor-pointer"
             >
               {m.settings_btn_select_folder()}
             </button>
@@ -1187,7 +1191,7 @@
                   <button
                     onclick={() => openEditDialog(v)}
                     title={m.queue_btn_edit_tooltip()}
-                    class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition"
+                    class="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition cursor-pointer"
                   >
                     <Edit3 class="w-3.5 h-3.5" />
                   </button>
@@ -1342,7 +1346,7 @@
           <div class="flex items-center gap-2">
             <button
               onclick={() => OpenInFileManager(`${settings.videoFolder}/uploaded`)}
-              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded border border-neutral-700 transition"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded border border-neutral-700 transition cursor-pointer"
             >
               <Folder class="w-3.5 h-3.5 text-amber-400" />
               <span>{m.history_btn_open_folder()}</span>
@@ -1350,7 +1354,7 @@
             <a
               href="https://www.tiktok.com/tiktokstudio/content"
               target="_blank"
-              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#E50914] hover:bg-[#F40612] rounded transition"
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#E50914] hover:bg-[#F40612] rounded transition cursor-pointer"
             >
               <ExternalLink class="w-3.5 h-3.5" />
               <span>{m.history_btn_view_tiktok()}</span>
@@ -1628,7 +1632,7 @@
                     <input
                       type="text"
                       bind:value={settings.defaultTag}
-                      placeholder="#phimbop #movie #shorts"
+                      placeholder="#movie #shorts"
                       class="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#E50914]"
                     />
                   </div>
@@ -2092,7 +2096,7 @@
         <Dialog.Content class="bg-[#1f1f1f] border border-neutral-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative text-white space-y-4">
           <Dialog.CloseTrigger
             onclick={() => isDialogOpen = false}
-            class="absolute top-4 right-4 text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition"
+            class="absolute top-4 right-4 text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition cursor-pointer"
           >
             <X class="w-5 h-5" />
           </Dialog.CloseTrigger>
@@ -2122,20 +2126,23 @@
                 <input
                   type="date"
                   bind:value={editDate}
-                  class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#E50914]"
+                  class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#E50914] cursor-pointer"
                 />
               </div>
 
               <div>
                 <span class="block text-xs font-medium text-neutral-300 mb-1">{m.dialog_field_time()}</span>
-                <select
-                  bind:value={editTime}
-                  class="w-full bg-neutral-900 border border-neutral-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#E50914]"
-                >
-                  {#each settings.goldenHours as h}
-                    <option value={h}>{getSlotLabel(h)}</option>
-                  {/each}
-                </select>
+                <div class="relative flex items-center">
+                  <select
+                    bind:value={editTime}
+                    class="appearance-none w-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-500 rounded-lg pl-3 pr-8 py-2 text-xs text-white focus:outline-none focus:border-[#E50914] focus:ring-1 focus:ring-[#E50914] cursor-pointer transition"
+                  >
+                    {#each settings.goldenHours as h}
+                      <option value={h} class="bg-neutral-900 text-white">{getSlotLabel(h)}</option>
+                    {/each}
+                  </select>
+                  <ChevronDown class="w-3.5 h-3.5 text-neutral-400 absolute right-2.5 pointer-events-none" />
+                </div>
               </div>
             </div>
           </div>
@@ -2143,13 +2150,13 @@
           <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-neutral-800">
             <button
               onclick={() => isDialogOpen = false}
-              class="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition"
+              class="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition cursor-pointer"
             >
               {m.dialog_btn_cancel()}
             </button>
             <button
               onclick={saveEditedVideo}
-              class="px-4 py-2 text-xs font-bold text-white bg-[#E50914] hover:bg-[#F40612] rounded-lg shadow transition"
+              class="px-4 py-2 text-xs font-bold text-white bg-[#E50914] hover:bg-[#F40612] rounded-lg shadow transition cursor-pointer"
             >
               {m.dialog_btn_save()}
             </button>

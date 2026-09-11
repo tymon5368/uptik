@@ -14,18 +14,23 @@ func TestCleanVideoTitle(t *testing.T) {
 	}{
 		{
 			input:    "A pack of crazy hippies broke into his home 🫣 #movie #film (1920p_24fps_H264-128kbit_AAC-English).mp4",
-			tag:      "#phimbop",
-			expected: "A pack of crazy hippies broke into his home #movie #film #phimbop",
+			tag:      "#shorts",
+			expected: "A pack of crazy hippies broke into his home #movie #film #shorts",
 		},
 		{
 			input:    "Welcome! (1080p_50fps_H264-128kbit_AAC-English).mp4",
-			tag:      "#phimbop",
-			expected: "Welcome! #phimbop",
+			tag:      "#shorts",
+			expected: "Welcome! #shorts",
 		},
 		{
-			input:    "Already has tag #phimbop (1080p).mp4",
-			tag:      "#phimbop",
-			expected: "Already has tag #phimbop",
+			input:    "Already has tag #shorts (1080p).mp4",
+			tag:      "#shorts",
+			expected: "Already has tag #shorts",
+		},
+		{
+			input:    "Clean title without any tag added (1080p).mp4",
+			tag:      "",
+			expected: "Clean title without any tag added",
 		},
 	}
 

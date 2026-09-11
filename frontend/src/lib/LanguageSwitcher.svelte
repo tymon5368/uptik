@@ -72,7 +72,7 @@
         <button
           type="button"
           onclick={() => selectLocale(loc.code)}
-          class="flex items-center justify-between w-full px-2.5 py-2 text-xs rounded-lg text-left transition {isSelected
+          class="flex items-center justify-between w-full px-2.5 py-2 text-xs rounded-lg text-left transition cursor-pointer {isSelected
             ? 'bg-[#E50914]/15 text-[#E50914] font-semibold'
             : 'text-neutral-300 hover:bg-neutral-800/90 hover:text-white'}"
           role="menuitem"

@@ -2,6 +2,7 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
     --netflix-red: #E50914;
     --netflix-red-hover: #F40612;
     --netflix-red-dark: #B81D24;
@@ -16,6 +17,7 @@
   }
 
   html, body {
+    color-scheme: dark;
     background-color: var(--netflix-black);
     color: var(--netflix-text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -46,5 +48,60 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #E50914;
   }
+}
+
+/* Global Dark Form Controls & WebKitGTK Native Override Reset */
+select,
+input,
+textarea {
+  color-scheme: dark;
+}
+
+select {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+select option {
+  background-color: #1e1e1e;
+  color: #ffffff;
+  padding: 6px 10px;
+}
+
+select option:checked {
+  background-color: #E50914;
+  color: #ffffff;
+}
+
+/* Global Interactive Elements Cursor Pointer Standard */
+button,
+[role="button"],
+[role="tab"],
+[data-part="trigger"],
+[data-scope="tabs"] [data-part="trigger"],
+[data-part="close-trigger"],
+a,
+select,
+summary,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+input[type="date"],
+input[type="time"],
+label[for],
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+[role="tab"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
 }
 
