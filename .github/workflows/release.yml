@@ -250,24 +250,24 @@ jobs:
           files: |
             downloaded-artifacts/*
           body: |
-            ## 🚀 UpTik ${{ steps.meta.outputs.tag }} - Omnichannel Video Studio
+            ## 🚀 UpTik ${{ steps.meta.outputs.tag }} - Omnichannel Desktop Studio
             
-            Bản phát hành chính thức của ứng dụng **UpTik** hỗ trợ đa nền tảng (Windows, macOS, Linux).
+            Official release of **UpTik** desktop application supporting Windows, macOS, and Linux.
 
-            ### 📦 Danh Sách Tệp Tải Về
+            ### 📦 Download Assets
             - **Windows**: 
-              - Cài đặt (NSIS Installer): `uptik-${{ steps.meta.outputs.version }}-windows-amd64-setup.exe`
-              - Bản di động (Portable): `uptik-${{ steps.meta.outputs.version }}-windows-amd64-portable.zip`
+              - Installer (NSIS Setup): `uptik-${{ steps.meta.outputs.version }}-windows-amd64-setup.exe`
+              - Portable ZIP: `uptik-${{ steps.meta.outputs.version }}-windows-amd64-portable.zip`
             - **macOS**:
-              - Ứng dụng Universal (Apple Silicon & Intel): `uptik-${{ steps.meta.outputs.version }}-macos-universal.zip`
+              - Universal Application Bundle (Apple Silicon & Intel): `uptik-${{ steps.meta.outputs.version }}-macos-universal.zip`
             - **Linux**:
-              - Gói nén nhị phân: `uptik-${{ steps.meta.outputs.version }}-linux-amd64.tar.gz`
-            - **Mã kiểm tra toàn vẹn**: `SHA256SUMS.txt`
+              - Standalone Binary Tarball: `uptik-${{ steps.meta.outputs.version }}-linux-amd64.tar.gz`
+            - **Checksum Verification**: `SHA256SUMS.txt`
             
-            ### ✨ Tính Năng Nổi Bật
-            - **Omnichannel Scheduler**: Phân bổ video vào khung giờ vàng (11:30, 18:30, 21:30) trong 30 ngày.
-            - **Multi-Platform CDP**: Tự động đăng tải lên TikTok Studio, YouTube Shorts, Meta Business Suite.
-            - **Transactional Outbox Queue**: Lưu trữ trạng thái bền vững với SQLite (WAL Mode), khôi phục tức thì khi crash.
-            - **Safety Circuit Breaker**: Tự động dừng an toàn khi gặp Checkpoint / Captcha / Rate Limit.
-            - **Native Desktop Experience**: Tích hợp Khay hệ thống (System Tray), Close-to-Tray, và Autostart.
-            - **Modern UI**: Svelte 5 Runes, Netflix Studio Dark Theme, 100% Lucide Icons.
+            ### ✨ Key Highlights
+            - **Omnichannel Golden Hour Scheduler**: Automatic time slot distribution (11:30 AM, 6:30 PM, 9:30 PM) across a 30-day horizon with Collision Guard.
+            - **Zero-API Chrome CDP Driver**: Direct web automation for TikTok Studio, YouTube Shorts, and Meta Business Suite using active browser sessions.
+            - **Transactional Outbox Queue**: Resilient SQLite persistence (WAL mode) with self-healing crash recovery on startup.
+            - **Safety Circuit Breaker**: Automatic queue suspension on checkpoint, captcha, or HTTP 429 rate limit detection.
+            - **Native Desktop Lifecycle**: Cross-platform system tray, close-to-tray background execution, and system boot autostart.
+            - **Modern Studio Interface**: Engineered with Svelte 5 Runes, Netflix Studio Dark Theme, and 100% Lucide Icons.
