@@ -202,7 +202,7 @@ Maintainer: UpTik <noreply@uptik.app>
 Description: TikTok Auto Scheduler & Omnichannel Video Studio
  UpTik is an omnichannel desktop studio for automated content scheduling
  across TikTok Studio, YouTube Shorts, and Meta Business Suite.
-Depends: libgtk-3-0, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37, libayatana-appindicator3-1
+Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libayatana-appindicator3-1
 EOF
           sed -i "s/REPLACE_VERSION/${VERSION}/g" "${DEB_DIR}/DEBIAN/control"
 
