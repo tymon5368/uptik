@@ -120,8 +120,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          if [ -d "C:/Program Files (x86)/NSIS" ]; then
+          if ! command -v makensis &> /dev/null; then
+            choco install -y nsis
             echo "C:/Program Files (x86)/NSIS" >> $GITHUB_PATH
+            echo "C:/Program Files/NSIS" >> $GITHUB_PATH
           fi
 
       - name: Install Wails CLI
