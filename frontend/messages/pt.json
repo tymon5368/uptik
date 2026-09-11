@@ -165,7 +165,7 @@
   "settings_update_new_badge": "NOVA VERSÃO",
   "settings_update_downloading": "Baixando pacote de atualização e verificando checksum SHA256...",
   "settings_update_success": "Atualização baixada e instalada com sucesso! Clique em \"Reiniciar app\" para aplicar.",
-  "settings_current_version": "Versione atual:",
+  "settings_current_version": "Versão atual:",
   "settings_max_days_unit": "(Dias)",
   "queue_unassigned_slot": "Slot não atribuído",
   "queue_btn_edit_tooltip": "Editar legenda ou horário",
