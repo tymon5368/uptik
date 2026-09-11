@@ -35,17 +35,17 @@ func (u *Uploader) Log(level, msg string) {
 // ConnectOrLaunch connects to an active Chrome CDP or starts a new instance
 func (u *Uploader) ConnectOrLaunch() error {
 	cdpURL := fmt.Sprintf("http://127.0.0.1:%d", u.settings.CdpPort)
-	u.Log("cdp", fmt.Sprintf("Kiểm tra kết nối tới Chrome CDP tại %s...", cdpURL))
+	u.Log("cdp", fmt.Sprintf("Checking connection to Chrome CDP at %s...", cdpURL))
 
 	b := rod.New().ControlURL(cdpURL)
 	err := b.Connect()
 	if err == nil {
-		u.Log("success", "Đã kết nối thành công tới Chrome CDP đang chạy.")
+		u.Log("success", "Successfully connected to running Chrome CDP instance.")
 		u.browser = b
 		return nil
 	}
 
-	u.Log("info", fmt.Sprintf("Khởi động Chrome mới với profile: %s", u.settings.ChromeUserDataDir))
+	u.Log("info", fmt.Sprintf("Launching new Chrome instance with profile: %s", u.settings.ChromeUserDataDir))
 	_ = os.MkdirAll(u.settings.ChromeUserDataDir, 0755)
 
 	l := launcher.New().
@@ -59,11 +59,11 @@ func (u *Uploader) ConnectOrLaunch() error {
 
 	launchURL, err := l.Launch()
 	if err != nil {
-		return fmt.Errorf("không thể khởi động Chrome: %w", err)
+		return fmt.Errorf("failed to launch Chrome: %w", err)
 	}
 
 	u.browser = rod.New().ControlURL(launchURL).MustConnect()
-	u.Log("success", "Chrome đã khởi động và kết nối CDP thành công.")
+	u.Log("success", "Chrome launched and CDP connected successfully.")
 	return nil
 }
 
@@ -108,7 +108,7 @@ func (u *Uploader) OpenPlatformLogin(platformID string) error {
 	}
 
 	page := u.browser.MustPage()
-	u.Log("info", fmt.Sprintf("Mở trang quản trị: %s (%s)", platform.DisplayName(), platform.LoginURL()))
+	u.Log("info", fmt.Sprintf("Opening platform dashboard: %s (%s)", platform.DisplayName(), platform.LoginURL()))
 	return page.Navigate(platform.LoginURL())
 }
 
@@ -136,7 +136,7 @@ func (u *Uploader) UploadSingleVideo(ctx context.Context, item *VideoItem, targe
 		_ = proto.PageHandleJavaScriptDialog{Accept: true}.Call(u.browser)
 	})()
 
-	u.Log("info", fmt.Sprintf("🚀 [OMNICHANNEL] Bắt đầu xử lý: %s (%d kênh: %s)", item.CustomTitle, len(targetChannels), strings.Join(targetChannels, ", ")))
+	u.Log("info", fmt.Sprintf("🚀 [OMNICHANNEL] Starting upload job: %s (%d channels: %s)", item.CustomTitle, len(targetChannels), strings.Join(targetChannels, ", ")))
 
 	var successfulChannels []string
 	var failedChannels []string
@@ -150,23 +150,23 @@ func (u *Uploader) UploadSingleVideo(ctx context.Context, item *VideoItem, targe
 
 		platform, err := GetPlatform(ch)
 		if err != nil {
-			u.Log("error", fmt.Sprintf("Bỏ qua kênh không hợp lệ %s: %v", ch, err))
+			u.Log("error", fmt.Sprintf("Skipping invalid platform %s: %v", ch, err))
 			continue
 		}
 
-		u.Log("info", fmt.Sprintf("▶️ [%d/%d] Đang upload lên %s...", idx+1, len(targetChannels), platform.DisplayName()))
+		u.Log("info", fmt.Sprintf("▶️ [%d/%d] Uploading to %s...", idx+1, len(targetChannels), platform.DisplayName()))
 		item.Channels[ch] = ChannelStatus{Status: "uploading"}
 
 		uploadErr := platform.UploadVideo(ctx, u.browser, item, u.logFn)
 		if uploadErr != nil {
-			u.Log("error", fmt.Sprintf("❌ Lỗi upload %s: %v", platform.DisplayName(), uploadErr))
+			u.Log("error", fmt.Sprintf("❌ Upload failed on %s: %v", platform.DisplayName(), uploadErr))
 			item.Channels[ch] = ChannelStatus{
 				Status:   "error",
 				ErrorMsg: uploadErr.Error(),
 			}
 			failedChannels = append(failedChannels, ch)
 		} else {
-			u.Log("success", fmt.Sprintf("✅ Upload thành công lên %s!", platform.DisplayName()))
+			u.Log("success", fmt.Sprintf("✅ Upload succeeded on %s!", platform.DisplayName()))
 			item.Channels[ch] = ChannelStatus{
 				Status:     "scheduled",
 				UploadedAt: time.Now().Format("15:04:05"),
@@ -176,7 +176,7 @@ func (u *Uploader) UploadSingleVideo(ctx context.Context, item *VideoItem, targe
 
 		// Courtesy delay between platforms if there's another channel
 		if idx < len(targetChannels)-1 {
-			u.Log("info", "⏳ Nghỉ 5 giây giữa các nền tảng để giải phóng tài nguyên...")
+			u.Log("info", "⏳ Pausing 5s before next channel to release resources...")
 			time.Sleep(5 * time.Second)
 		}
 	}
@@ -206,9 +206,9 @@ func (u *Uploader) UploadSingleVideo(ctx context.Context, item *VideoItem, targe
 		destPath := filepath.Join(uploadedDir, item.Filename)
 		err := os.Rename(item.FullPath, destPath)
 		if err != nil {
-			u.Log("warn", fmt.Sprintf("Không thể di chuyển file: %v", err))
+			u.Log("warn", fmt.Sprintf("Warning: could not move uploaded file: %v", err))
 		} else {
-			u.Log("success", fmt.Sprintf("📁 Đã di chuyển an toàn video vào: uploaded/%s", item.Filename))
+			u.Log("success", fmt.Sprintf("📁 Video safely archived to: uploaded/%s", item.Filename))
 		}
 		return nil
 	}

@@ -37,7 +37,7 @@ func (p *FacebookUploader) CheckLogin(ctx context.Context, b *rod.Browser, logFn
 	defer page.Close()
 
 	if logFn != nil {
-		logFn("info", "Đang kiểm tra đăng nhập Facebook Business Suite...")
+		logFn("info", "Checking Facebook Business Suite login status...")
 	}
 	_ = page.Navigate(p.LoginURL())
 	_ = page.WaitLoad()
@@ -67,7 +67,7 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 		}
 	}
 
-	log("info", fmt.Sprintf("🎬 Bắt đầu upload Facebook Reels: %s", item.CustomTitle))
+	log("info", fmt.Sprintf("🎬 Starting Facebook Reels upload: %s", item.CustomTitle))
 
 	pages, err := b.Pages()
 	var page *rod.Page
@@ -87,9 +87,9 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 	page.MustSetViewport(1440, 900, 1, false)
 
 	// Step 1: Navigate to Reels Composer
-	log("cdp", "Điều hướng tới Meta Business Suite Reels Composer...")
+	log("cdp", "Navigating to Meta Business Suite Reels Composer...")
 	if err := page.Navigate(p.LoginURL()); err != nil {
-		return fmt.Errorf("lỗi điều hướng Reels Composer: %w", err)
+		return fmt.Errorf("Reels Composer navigation error: %w", err)
 	}
 
 	_ = page.WaitLoad()
@@ -103,11 +103,11 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 
 	info, err := page.Info()
 	if err == nil && (strings.Contains(info.URL, "/login") || strings.Contains(info.URL, "facebook.com/login")) {
-		return fmt.Errorf("chưa đăng nhập Facebook Business Suite. Vui lòng mở trình duyệt và đăng nhập tài khoản Meta")
+		return fmt.Errorf("not logged into Facebook Business Suite. Please log in with Meta account")
 	}
 
 	// Step 2: Upload file with Selector Fallback Matrix
-	log("cdp", fmt.Sprintf("Chọn file video: %s (%s)", item.Filename, item.FileSizeHuman))
+	log("cdp", fmt.Sprintf("Selecting video file: %s (%s)", item.Filename, item.FileSizeHuman))
 	fileInputSelectors := []string{
 		"input[type=\"file\"][accept*=\"video\"]",
 		"input[type=\"file\"]",
@@ -123,7 +123,7 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 	}
 
 	if fileInput == nil {
-		return fmt.Errorf("không tìm thấy ô input[type='file'] của Meta Business Suite")
+		return fmt.Errorf("file input element not found in Meta Business Suite")
 	}
 
 	absPath, err := filepath.Abs(item.FullPath)
@@ -131,27 +131,27 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 		absPath = item.FullPath
 	}
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		return fmt.Errorf("file không tồn tại trên ổ cứng: %s", absPath)
+		return fmt.Errorf("file does not exist on disk: %s", absPath)
 	}
 
 	if err := fileInput.SetFiles([]string{absPath}); err != nil {
-		return fmt.Errorf("không thể đính kèm file: %w", err)
+		return fmt.Errorf("failed to attach file: %w", err)
 	}
 
-	log("info", "⏳ Đã gửi file qua CDP, đang chờ Meta xử lý Reels...")
+	log("info", "⏳ File sent via CDP, waiting for Meta to process Reels video...")
 
 	// Step 3: Wait for composer editor
 	err = rod.Try(func() {
 		page.Timeout(90 * time.Second).MustElement("[contenteditable=\"true\"], textarea, [role=\"textbox\"]")
 	})
 	if err != nil {
-		return fmt.Errorf("timeout chờ Meta xử lý video: %w", err)
+		return fmt.Errorf("timeout waiting for Meta to process video: %w", err)
 	}
 
 	time.Sleep(2 * time.Second)
 
 	// Step 4: Fill Caption
-	log("cdp", fmt.Sprintf("Điền mô tả Reels: %s", item.CustomTitle))
+	log("cdp", fmt.Sprintf("Filling Reels caption: %s", item.CustomTitle))
 	_, err = page.Eval(`(captionText) => {
 		const editor = document.querySelector('[contenteditable="true"], textarea, [role="textbox"]');
 		if (editor) {
@@ -166,7 +166,7 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 	time.Sleep(1 * time.Second)
 
 	// Step 5: Advance through steps to scheduling
-	log("cdp", "Chuyển tiếp tới bước hẹn giờ...")
+	log("cdp", "Advancing through composer steps to schedule...")
 	for i := 0; i < 2; i++ {
 		_ = rod.Try(func() {
 			nextBtn, err := page.Timeout(5 * time.Second).Element("button[aria-label*='Next' i], button[aria-label*='Tiếp' i], [role='button'][aria-label*='Next' i]")
@@ -181,7 +181,7 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 
 	// Step 6: Select Publish Now or Schedule radio
 	if isPublishNow {
-		log("cdp", "Chọn chế độ đăng ngay (Publish / Share Now) Facebook Reels...")
+		log("cdp", "Selecting Share Now (Publish Now) mode for Facebook Reels...")
 		_, _ = page.Eval(`() => {
 			const radios = Array.from(document.querySelectorAll('input[type="radio"], [role="radio"], label'));
 			const shareNowOpt = radios.find(r => r.innerText && (r.innerText.includes('Share now') || r.innerText.includes('Chia sẻ ngay') || r.innerText.includes('Publish now') || r.innerText.includes('Đăng ngay')));
@@ -189,7 +189,7 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 		}`)
 		time.Sleep(1 * time.Second)
 	} else {
-		log("cdp", fmt.Sprintf("Cấu hình lịch đăng: %s %s", item.ScheduledDate, item.ScheduledTime))
+		log("cdp", fmt.Sprintf("Configuring schedule date/time: %s %s", item.ScheduledDate, item.ScheduledTime))
 		_, _ = page.Eval(`() => {
 			const radios = Array.from(document.querySelectorAll('input[type="radio"], [role="radio"], label'));
 			const scheduleOpt = radios.find(r => r.innerText && (r.innerText.includes('Schedule') || r.innerText.includes('Lên lịch')));
@@ -200,9 +200,9 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 
 	// Step 7: Click Schedule / Publish Button
 	if isPublishNow {
-		log("cdp", "Bấm nút Chia sẻ ngay / Xuất bản Reels...")
+		log("cdp", "Clicking Share / Publish button on Facebook Reels...")
 	} else {
-		log("cdp", "Bấm nút Schedule Reels...")
+		log("cdp", "Clicking Schedule button on Facebook Reels...")
 	}
 	scheduled, _ := page.Eval(`() => {
 		const btns = Array.from(document.querySelectorAll('button, [role="button"]'));
@@ -218,7 +218,7 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 	}`)
 
 	if !scheduled.Value.Bool() {
-		log("warn", "Không tìm thấy nút Schedule/Publish trực tiếp, thử tìm nút hành động hoàn tất...")
+		log("warn", "Direct Schedule/Publish button not found, searching fallback submit action...")
 		_ = rod.Try(func() {
 			btn, err := page.Element("button[type='submit'], [data-testid*='submit' i]")
 			if err == nil && btn != nil {
@@ -227,13 +227,13 @@ func (p *FacebookUploader) UploadVideo(ctx context.Context, b *rod.Browser, item
 		})
 	}
 
-	log("info", "⏳ Đã gửi lệnh hoàn tất Facebook Reels, chờ xác nhận...")
+	log("info", "⏳ Submitted Facebook Reels command, waiting for confirmation...")
 	time.Sleep(5 * time.Second)
 
 	if isPublishNow {
-		log("success", fmt.Sprintf("🎉 Xuất bản Facebook Reels thành công (Publish Now): %s", item.CustomTitle))
+		log("success", fmt.Sprintf("🎉 Facebook Reels published successfully (Publish Now): %s", item.CustomTitle))
 	} else {
-		log("success", fmt.Sprintf("🎉 Lên lịch Facebook Reels thành công: %s lúc %s", item.ScheduledDate, item.ScheduledTime))
+		log("success", fmt.Sprintf("🎉 Facebook Reels scheduled successfully: %s at %s", item.ScheduledDate, item.ScheduledTime))
 	}
 	return nil
 }

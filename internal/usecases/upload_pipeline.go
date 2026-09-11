@@ -52,7 +52,7 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 		item.Channels = make(map[string]domain.ChannelStatus)
 	}
 
-	uc.Log("info", fmt.Sprintf("🚀 [PIPELINE] Bắt đầu xử lý: %s (%d kênh: %s)", item.CustomTitle, len(targetChannels), strings.Join(targetChannels, ", ")))
+	uc.Log("info", fmt.Sprintf("🚀 [PIPELINE] Starting upload job: %s (%d channels: %s)", item.CustomTitle, len(targetChannels), strings.Join(targetChannels, ", ")))
 
 	// Mark state to uploading in queue
 	_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateUploading, "")
@@ -63,30 +63,30 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 	for idx, ch := range targetChannels {
 		select {
 		case <-ctx.Done():
-			_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateCancelled, "Người dùng đã hủy tiến trình")
+			_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateCancelled, "User cancelled upload operation")
 			return ctx.Err()
 		default:
 		}
 
 		platform, err := uc.registry.Get(ch)
 		if err != nil {
-			uc.Log("error", fmt.Sprintf("Bỏ qua nền tảng không hợp lệ %s: %v", ch, err))
+			uc.Log("error", fmt.Sprintf("Skipping invalid platform %s: %v", ch, err))
 			continue
 		}
 
-		uc.Log("info", fmt.Sprintf("▶️ [%d/%d] Đang upload lên %s...", idx+1, len(targetChannels), platform.DisplayName()))
+		uc.Log("info", fmt.Sprintf("▶️ [%d/%d] Uploading to %s...", idx+1, len(targetChannels), platform.DisplayName()))
 		item.Channels[ch] = domain.ChannelStatus{Status: "uploading"}
 
 		uploadErr := platform.UploadVideo(ctx, b, item, uc.logFn)
 		if uploadErr != nil {
-			uc.Log("error", fmt.Sprintf("❌ Lỗi upload %s: %v", platform.DisplayName(), uploadErr))
+			uc.Log("error", fmt.Sprintf("❌ Upload failed on %s: %v", platform.DisplayName(), uploadErr))
 			item.Channels[ch] = domain.ChannelStatus{
 				Status:   "error",
 				ErrorMsg: uploadErr.Error(),
 			}
 			failedChannels = append(failedChannels, ch)
 		} else {
-			uc.Log("success", fmt.Sprintf("✅ Upload thành công lên %s!", platform.DisplayName()))
+			uc.Log("success", fmt.Sprintf("✅ Upload succeeded on %s!", platform.DisplayName()))
 			item.Channels[ch] = domain.ChannelStatus{
 				Status:     "scheduled",
 				UploadedAt: time.Now().Format("15:04:05"),
@@ -96,7 +96,7 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 
 		// Courtesy delay between platforms to free resources & prevent spam detection
 		if idx < len(targetChannels)-1 {
-			uc.Log("info", "⏳ Nghỉ 5 giây giữa các nền tảng để giải phóng tài nguyên...")
+			uc.Log("info", "⏳ Pausing 5s before next channel to release resources...")
 			time.Sleep(5 * time.Second)
 		}
 	}
@@ -127,14 +127,14 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 	if len(successfulChannels) > 0 && len(failedChannels) > 0 {
 		item.Status = "partial"
 		item.UploadedAt = time.Now().Format("15:04:05")
-		errMsg := fmt.Sprintf("Thành công %s, thất bại trên: %s", strings.Join(successfulChannels, ", "), strings.Join(failedChannels, ", "))
+		errMsg := fmt.Sprintf("Succeeded on %s, failed on: %s", strings.Join(successfulChannels, ", "), strings.Join(failedChannels, ", "))
 		_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStatePartial, errMsg)
 		return fmt.Errorf("%s", errMsg)
 	}
 
 	// Total failure
 	item.Status = "error"
-	errMsg := fmt.Sprintf("Thất bại trên toàn bộ các kênh: %s", strings.Join(failedChannels, ", "))
+	errMsg := fmt.Sprintf("Failed on all channels: %s", strings.Join(failedChannels, ", "))
 	_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateFailed, errMsg)
 	return fmt.Errorf("%s", errMsg)
 }
@@ -148,9 +148,9 @@ func (uc *UploadPipelineUseCase) SafeArchive(video domain.VideoItem) error {
 	destPath := filepath.Join(uploadedDir, video.Filename)
 	err := os.Rename(video.FullPath, destPath)
 	if err != nil {
-		uc.Log("warn", fmt.Sprintf("Không thể di chuyển file: %v", err))
+		uc.Log("warn", fmt.Sprintf("Warning: could not move uploaded file: %v", err))
 		return err
 	}
-	uc.Log("success", fmt.Sprintf("📁 Đã di chuyển an toàn video vào: uploaded/%s", video.Filename))
+	uc.Log("success", fmt.Sprintf("📁 Video safely archived to: uploaded/%s", video.Filename))
 	return nil
 }

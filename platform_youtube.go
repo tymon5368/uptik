@@ -36,7 +36,7 @@ func (p *YouTubePlatform) CheckLogin(ctx context.Context, b *rod.Browser, logFn 
 	defer page.Close()
 
 	if logFn != nil {
-		logFn("info", "Đang kiểm tra trạng thái đăng nhập YouTube Studio...")
+		logFn("info", "Checking YouTube Studio login status...")
 	}
 	_ = page.Navigate(p.LoginURL())
 	_ = page.WaitLoad()
@@ -75,8 +75,8 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 		ytTitle = ytTitle[:95] + "..."
 	}
 
-	log("info", fmt.Sprintf("🎬 Bắt đầu upload YouTube Shorts: %s", ytTitle))
-	log("info", fmt.Sprintf("📅 Dự kiến lên lịch: %s lúc %s (%s)", item.ScheduledDate, item.ScheduledTime, item.GoldenHourSlot))
+	log("info", fmt.Sprintf("🎬 Starting YouTube Shorts upload: %s", ytTitle))
+	log("info", fmt.Sprintf("📅 Scheduled for: %s at %s (%s)", item.ScheduledDate, item.ScheduledTime, item.GoldenHourSlot))
 
 	// Find or create page
 	pages, err := b.Pages()
@@ -97,10 +97,10 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 	page.MustSetViewport(1440, 900, 1, false)
 
 	// Step 1: Navigate to Studio
-	log("cdp", "Điều hướng tới YouTube Studio...")
+	log("cdp", "Navigating to YouTube Studio...")
 	err = page.Navigate("https://studio.youtube.com")
 	if err != nil {
-		return fmt.Errorf("lỗi điều hướng YouTube Studio: %w", err)
+		return fmt.Errorf("YouTube Studio navigation error: %w", err)
 	}
 
 	_ = page.WaitLoad()
@@ -108,11 +108,11 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 
 	info, err := page.Info()
 	if err == nil && (strings.Contains(info.URL, "accounts.google.com") || strings.Contains(info.URL, "/signin")) {
-		return fmt.Errorf("chưa đăng nhập YouTube Studio. Vui lòng mở trình duyệt và đăng nhập tài khoản Google")
+		return fmt.Errorf("not logged into YouTube Studio. Please log in with Google account")
 	}
 
 	// Step 2: Open Upload Dialog
-	log("cdp", "Mở modal Tải video lên...")
+	log("cdp", "Opening Upload Video modal...")
 	uploadOpened := false
 
 	// Try clicking create button
@@ -138,7 +138,7 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 	}
 
 	// Step 3: Attach video file
-	log("cdp", fmt.Sprintf("Chọn file video: %s (%s)", item.Filename, item.FileSizeHuman))
+	log("cdp", fmt.Sprintf("Selecting video file: %s (%s)", item.Filename, item.FileSizeHuman))
 	fileInput, err := page.Timeout(30 * time.Second).Element("ytcp-uploads-dialog input[type=\"file\"], input[type=\"file\"]")
 	if err != nil {
 		return fmt.Errorf("không tìm thấy ô input[type='file'] của YouTube Studio: %w", err)
@@ -157,20 +157,20 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 		return fmt.Errorf("không thể đính kèm file: %w", err)
 	}
 
-	log("info", "⏳ Đã gửi file qua CDP, đang chờ YouTube phân tích video Shorts...")
+	log("info", "⏳ File sent via CDP, waiting for YouTube to process Shorts video...")
 
 	// Step 4: Wait for Details dialog
 	err = rod.Try(func() {
 		page.Timeout(90 * time.Second).MustElement("#textbox, ytcp-social-suggestions-textbox#title-textarea, #dialog")
 	})
 	if err != nil {
-		return fmt.Errorf("timeout chờ YouTube phân tích video: %w", err)
+		return fmt.Errorf("timeout waiting for YouTube to process video: %w", err)
 	}
 
 	time.Sleep(3 * time.Second)
 
 	// Step 5: Fill Title & Audience
-	log("cdp", fmt.Sprintf("Điền tiêu đề Shorts: %s", ytTitle))
+	log("cdp", fmt.Sprintf("Filling Shorts title: %s", ytTitle))
 	fillRes, err := page.Eval(`(titleText) => {
 		// 1. Title input
 		const titleBox = document.querySelector('#title-textarea #textbox, [aria-label*="title" i], [aria-label*="tiêu đề" i]');
@@ -194,13 +194,13 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 		return true;
 	}`, ytTitle)
 	if err != nil || !fillRes.Value.Bool() {
-		log("warn", fmt.Sprintf("Không thể điền đầy đủ trường: %v", err))
+		log("warn", fmt.Sprintf("Unable to fill all form fields: %v", err))
 	}
 
 	time.Sleep(1 * time.Second)
 
 	// Step 6: Step through Next buttons to Visibility tab
-	log("cdp", "Chuyển tiếp qua các bước kiểm tra (Video elements, Checks, Visibility)...")
+	log("cdp", "Stepping through validation tabs (Video elements, Checks, Visibility)...")
 	for step := 0; step < 3; step++ {
 		time.Sleep(1 * time.Second)
 		nextClicked, _ := page.Eval(`() => {
@@ -220,7 +220,7 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 
 	// Step 7: Configure Schedule Date & Time
 	if item.ScheduledDate == "" || item.ScheduledTime == "" {
-		return fmt.Errorf("video chưa có thông tin ngày hoặc giờ lên lịch")
+		return fmt.Errorf("video missing scheduled date or time")
 	}
 
 	dateParts := strings.Split(item.ScheduledDate, "-")
@@ -228,7 +228,7 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 	targetMonth, _ := strconv.Atoi(dateParts[1])
 	targetDay, _ := strconv.Atoi(dateParts[2])
 
-	log("cdp", fmt.Sprintf("Thiết lập lịch phát: %04d-%02d-%02d %s", targetYear, targetMonth, targetDay, item.ScheduledTime))
+	log("cdp", fmt.Sprintf("Configuring schedule date/time: %04d-%02d-%02d %s", targetYear, targetMonth, targetDay, item.ScheduledTime))
 
 	scheduleScript := `(day, month, year, timeStr) => {
 		return new Promise(async (resolve) => {
@@ -263,7 +263,7 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 	time.Sleep(2 * time.Second)
 
 	// Step 8: Click Schedule Button
-	log("cdp", "Bấm nút Schedule hoàn tất lên lịch YouTube Shorts...")
+	log("cdp", "Clicking Schedule button on YouTube Shorts...")
 	doneClicked, _ := page.Eval(`() => {
 		const doneBtn = document.querySelector('#done-button, [aria-label="Schedule"], [aria-label="Lên lịch"]');
 		if (doneBtn && !doneBtn.hasAttribute('disabled')) {
@@ -273,10 +273,10 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 		return false;
 	}`)
 	if !doneClicked.Value.Bool() {
-		return fmt.Errorf("không thể bấm nút Done/Schedule của YouTube Studio")
+		return fmt.Errorf("failed to click Done/Schedule button on YouTube Studio")
 	}
 
-	log("info", "⏳ Đã gửi lệnh lên lịch, chờ xác nhận từ YouTube...")
+	log("info", "⏳ Submitted schedule command, waiting for YouTube confirmation...")
 
 	// Step 9: Wait for Success dialog / completion
 	submitted := false
@@ -315,9 +315,9 @@ func (p *YouTubePlatform) UploadVideo(ctx context.Context, b *rod.Browser, item 
 	}
 
 	if !submitted {
-		return fmt.Errorf("YouTube Studio chưa phản hồi xác nhận sau 40 giây")
+		return fmt.Errorf("YouTube Studio did not confirm completion within 40 seconds")
 	}
 
-	log("success", fmt.Sprintf("🎉 Lên lịch YouTube Shorts thành công: %s lúc %s", item.ScheduledDate, item.ScheduledTime))
+	log("success", fmt.Sprintf("🎉 YouTube Shorts scheduled successfully: %s at %s", item.ScheduledDate, item.ScheduledTime))
 	return nil
 }

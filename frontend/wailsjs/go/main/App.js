@@ -90,6 +90,10 @@ export function RegisterSettingsUpdateListener(arg1) {
   return window['go']['main']['App']['RegisterSettingsUpdateListener'](arg1);
 }
 
+export function RestartApp() {
+  return window['go']['main']['App']['RestartApp']();
+}
+
 export function ResumeQueue() {
   return window['go']['main']['App']['ResumeQueue']();
 }
@@ -150,7 +154,6 @@ export function UpdateGoldenHours(arg1) {
   return window['go']['main']['App']['UpdateGoldenHours'](arg1);
 }
 
-export function RestartApp() {
-  return window['go']['main']['App']['RestartApp']();
+export function UpdateModeGoldenHours(arg1, arg2) {
+  return window['go']['main']['App']['UpdateModeGoldenHours'](arg1, arg2);
 }
-

@@ -49,7 +49,10 @@ type App struct {
 }
 
 func NewApp() *App {
-	dbPath := filepath.Join(".", "uptik.db")
+	return NewAppWithDBPath(filepath.Join(".", "uptik.db"))
+}
+
+func NewAppWithDBPath(dbPath string) *App {
 	storage, err := sqlite.NewStorage(dbPath)
 	if err != nil {
 		fmt.Printf("Warning: failed to open SQLite: %v\n", err)
@@ -148,7 +151,7 @@ func (a *App) startup(ctx context.Context) {
 		if err == nil && recovered > 0 {
 			runtime.EventsEmit(a.ctx, "log_entry", domain.LogEntry{
 				Level:     "warn",
-				Message:   fmt.Sprintf("Khôi phục thành công %d tác vụ upload bị gián đoạn từ phiên trước.", recovered),
+				Message:   fmt.Sprintf("Recovered %d interrupted upload tasks from previous session.", recovered),
 				Timestamp: time.Now().Format("15:04:05"),
 			})
 			runtime.EventsEmit(a.ctx, "queue_recovered", map[string]interface{}{
@@ -215,10 +218,14 @@ func (a *App) GenerateSlots(items []domain.VideoItem, startDateStr string) []dom
 			startDate = t
 		}
 	}
-	if a.schedUC != nil {
-		return a.schedUC.Execute(items, a.settings.GoldenHours, a.settings.MaxDays, startDate)
+	schedHours := a.settings.ScheduleGoldenHours
+	if len(schedHours) == 0 {
+		schedHours = a.settings.GoldenHours
 	}
-	return AssignScheduleSlots(items, a.settings.GoldenHours, a.settings.MaxDays, startDate)
+	if a.schedUC != nil {
+		return a.schedUC.Execute(items, schedHours, a.settings.MaxDays, startDate)
+	}
+	return AssignScheduleSlots(items, schedHours, a.settings.MaxDays, startDate)
 }
 
 func (a *App) GetHistory() []domain.HistoryRecord {
@@ -295,7 +302,7 @@ func (a *App) OpenPlatformLogin(platformID string) error {
 	page := a.browser.MustPage()
 	runtime.EventsEmit(a.ctx, "log_entry", domain.LogEntry{
 		Level:     "info",
-		Message:   fmt.Sprintf("Mở trang quản trị: %s (%s)", platform.DisplayName(), platform.LoginURL()),
+		Message:   fmt.Sprintf("Opening platform dashboard: %s (%s)", platform.DisplayName(), platform.LoginURL()),
 		Timestamp: time.Now().Format("15:04:05"),
 	})
 	return page.Navigate(platform.LoginURL())
@@ -379,7 +386,7 @@ func (a *App) StartOmnichannelUpload(queueItems []domain.VideoItem, channels []s
 		if err := a.connectOrLaunchBrowser(); err != nil {
 			runtime.EventsEmit(a.ctx, "log_entry", domain.LogEntry{
 				Level:     "error",
-				Message:   fmt.Sprintf("Lỗi kết nối Chrome: %v", err),
+				Message:   fmt.Sprintf("Chrome CDP connection error: %v", err),
 				Timestamp: time.Now().Format("15:04:05"),
 			})
 			return
@@ -613,14 +620,16 @@ func (a *App) GetSchedulerStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"isRunning":         isRunning,
-		"autoUploadEnabled": st.AutoUploadEnabled,
-		"publishMode":       st.PublishMode,
-		"nextDate":          nextDate,
-		"nextTime":          nextTime,
-		"remainingSec":      remainingSec,
-		"slotLabel":         slotLabel,
-		"goldenHours":       st.GoldenHours,
+		"isRunning":             isRunning,
+		"autoUploadEnabled":     st.AutoUploadEnabled,
+		"publishMode":           st.PublishMode,
+		"nextDate":              nextDate,
+		"nextTime":              nextTime,
+		"remainingSec":          remainingSec,
+		"slotLabel":             slotLabel,
+		"goldenHours":           st.GoldenHours,
+		"scheduleGoldenHours":   st.ScheduleGoldenHours,
+		"publishNowGoldenHours": st.PublishNowGoldenHours,
 	}
 }
 
@@ -643,9 +652,26 @@ func (a *App) ToggleAutoUpload(enabled bool) error {
 
 // SetPublishMode changes between schedule and publish_now modes
 func (a *App) SetPublishMode(mode string) error {
+	if mode == "" {
+		mode = string(domain.PublishModeSchedule)
+	}
+	pMode := domain.PublishMode(mode)
+	if pMode != domain.PublishModeSchedule && pMode != domain.PublishModePublishNow {
+		return fmt.Errorf("unsupported publish mode: %s", mode)
+	}
+
 	a.mu.Lock()
 	s := a.settings
-	s.PublishMode = domain.PublishMode(mode)
+	s.PublishMode = pMode
+	if s.PublishMode == domain.PublishModePublishNow {
+		if len(s.PublishNowGoldenHours) > 0 {
+			s.GoldenHours = s.PublishNowGoldenHours
+		}
+	} else {
+		if len(s.ScheduleGoldenHours) > 0 {
+			s.GoldenHours = s.ScheduleGoldenHours
+		}
+	}
 	a.settings = s
 	a.mu.Unlock()
 
@@ -665,12 +691,44 @@ func (a *App) TriggerAutoUploadNow() error {
 	return sched.TriggerManual(st)
 }
 
-// UpdateGoldenHours updates and sorts configured schedule hours
+// UpdateGoldenHours updates and sorts configured schedule hours for the active publish mode
 func (a *App) UpdateGoldenHours(hours []string) error {
 	valid := domain.ValidateAndSortHours(hours)
 	a.mu.Lock()
 	s := a.settings
 	s.GoldenHours = valid
+	if s.PublishMode == domain.PublishModePublishNow {
+		s.PublishNowGoldenHours = valid
+	} else {
+		s.ScheduleGoldenHours = valid
+	}
+	a.settings = s
+	a.mu.Unlock()
+
+	return a.SaveSettings(s)
+}
+
+// UpdateModeGoldenHours updates hours specifically for the designated publish mode
+func (a *App) UpdateModeGoldenHours(mode string, hours []string) error {
+	pMode := domain.PublishMode(mode)
+	if pMode != domain.PublishModeSchedule && pMode != domain.PublishModePublishNow {
+		return fmt.Errorf("unsupported publish mode: %s", mode)
+	}
+
+	valid := domain.ValidateAndSortHours(hours)
+	a.mu.Lock()
+	s := a.settings
+	if pMode == domain.PublishModePublishNow {
+		s.PublishNowGoldenHours = valid
+		if s.PublishMode == domain.PublishModePublishNow {
+			s.GoldenHours = valid
+		}
+	} else {
+		s.ScheduleGoldenHours = valid
+		if s.PublishMode == domain.PublishModeSchedule || s.PublishMode == "" {
+			s.GoldenHours = valid
+		}
+	}
 	a.settings = s
 	a.mu.Unlock()
 

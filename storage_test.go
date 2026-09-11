@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -96,3 +97,50 @@ func TestOmnichannelSlotsAndSettings(t *testing.T) {
 		t.Errorf("expected youtube channel ready, got %s", assigned[0].Channels["youtube"].Status)
 	}
 }
+
+func TestSeparateGoldenHoursSettings(t *testing.T) {
+	st := GetDefaultSettings()
+	if len(st.ScheduleGoldenHours) != 3 {
+		t.Errorf("expected 3 schedule golden hours, got %d", len(st.ScheduleGoldenHours))
+	}
+	if len(st.PublishNowGoldenHours) != 5 {
+		t.Errorf("expected 5 publish_now golden hours, got %d", len(st.PublishNowGoldenHours))
+	}
+
+	tmpDir := t.TempDir()
+	app := NewAppWithDBPath(filepath.Join(tmpDir, "test_uptik.db"))
+	app.settings = st
+
+	// Update schedule hours
+	_ = app.UpdateModeGoldenHours("schedule", []string{"09:00", "15:00"})
+	if len(app.settings.ScheduleGoldenHours) != 2 {
+		t.Errorf("expected 2 schedule hours, got %d", len(app.settings.ScheduleGoldenHours))
+	}
+	// Publish now hours should NOT be affected
+	if len(app.settings.PublishNowGoldenHours) != 5 {
+		t.Errorf("expected 5 publish_now hours preserved, got %d", len(app.settings.PublishNowGoldenHours))
+	}
+
+	// Update publish_now hours
+	_ = app.UpdateModeGoldenHours("publish_now", []string{"08:00", "12:00", "16:00", "20:00"})
+	if len(app.settings.PublishNowGoldenHours) != 4 {
+		t.Errorf("expected 4 publish_now hours, got %d", len(app.settings.PublishNowGoldenHours))
+	}
+	// Schedule hours should remain untouched
+	if len(app.settings.ScheduleGoldenHours) != 2 {
+		t.Errorf("expected 2 schedule hours preserved, got %d", len(app.settings.ScheduleGoldenHours))
+	}
+
+	// Switch mode to publish_now
+	_ = app.SetPublishMode("publish_now")
+	if len(app.settings.GoldenHours) != 4 {
+		t.Errorf("expected active GoldenHours to match publish_now (4), got %d", len(app.settings.GoldenHours))
+	}
+
+	// Switch back to schedule
+	_ = app.SetPublishMode("schedule")
+	if len(app.settings.GoldenHours) != 2 {
+		t.Errorf("expected active GoldenHours to match schedule (2), got %d", len(app.settings.GoldenHours))
+	}
+}
+

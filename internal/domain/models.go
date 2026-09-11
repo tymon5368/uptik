@@ -40,8 +40,10 @@ type Settings struct {
 	ChromeUserDataDir string      `json:"chromeUserDataDir"`
 	ChromePath        string      `json:"chromePath"`
 	DefaultTag        string      `json:"defaultTag"`
-	GoldenHours       []string    `json:"goldenHours"`
-	MaxDays           int         `json:"maxDays"`
+	GoldenHours           []string    `json:"goldenHours"`
+	ScheduleGoldenHours   []string    `json:"scheduleGoldenHours"`
+	PublishNowGoldenHours []string    `json:"publishNowGoldenHours"`
+	MaxDays               int         `json:"maxDays"`
 	Headless          bool        `json:"headless"`
 	CdpPort           int         `json:"cdpPort"`
 	EnabledChannels   []string    `json:"enabledChannels"`
@@ -51,6 +53,7 @@ type Settings struct {
 	PublishMode       PublishMode `json:"publishMode"`
 	AutoUploadEnabled bool        `json:"autoUploadEnabled"`
 	MissedSlotPolicy  string      `json:"missedSlotPolicy"` // "skip" or "run_immediate"
+	Locale            string      `json:"locale"`           // "en", "de", "ja", "ar", "fr", "vi"
 }
 
 // HistoryRecord represents an archived successful schedule entry
