@@ -60,7 +60,7 @@
 
   {#if isOpen}
     <div
-      class="absolute right-0 mt-2 w-56 rounded-xl bg-neutral-900/95 backdrop-blur-md border border-neutral-800 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+      class="absolute right-0 mt-2 w-56 max-h-80 overflow-y-auto rounded-xl bg-neutral-900/95 backdrop-blur-md border border-neutral-800 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar"
       role="menu"
     >
       <div class="px-2 py-1 mb-1 border-b border-neutral-800/80 text-[10px] uppercase font-bold tracking-wider text-neutral-500">

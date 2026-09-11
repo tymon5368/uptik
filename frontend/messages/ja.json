@@ -201,5 +201,12 @@
   "logs_level_error": "[エラー]",
   "logs_level_info": "[情報]",
   "settings_section_channels_desc": "ターゲットのSNSチャンネルを選択し、Chromeセッションを認証します",
-  "settings_section_system_desc": "システム起動時の動作、トレイ最小化、バックグラウンド常駐を設定します"
+  "settings_section_system_desc": "システム起動時の動作、トレイ最小化、バックグラウンド常駐を設定します",
+  "lang_zh": "中文 (简体)",
+  "lang_ko": "한국어",
+  "lang_es": "Español",
+  "lang_it": "Italiano",
+  "lang_nl": "Nederlands",
+  "lang_pl": "Polski",
+  "lang_pt": "Português"
 }
