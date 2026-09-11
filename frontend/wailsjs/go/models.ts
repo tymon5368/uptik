@@ -213,3 +213,40 @@ export namespace ports {
 
 }
 
+export namespace updater {
+	
+	export class UpdateInfo {
+	    available: boolean;
+	    currentVersion: string;
+	    latestVersion: string;
+	    releaseNotes: string;
+	    releaseUrl: string;
+	    publishedAt: string;
+	    assetUrl: string;
+	    assetName: string;
+	    assetSize: number;
+	    expectedChecksum: string;
+	    isSupported: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.currentVersion = source["currentVersion"];
+	        this.latestVersion = source["latestVersion"];
+	        this.releaseNotes = source["releaseNotes"];
+	        this.releaseUrl = source["releaseUrl"];
+	        this.publishedAt = source["publishedAt"];
+	        this.assetUrl = source["assetUrl"];
+	        this.assetName = source["assetName"];
+	        this.assetSize = source["assetSize"];
+	        this.expectedChecksum = source["expectedChecksum"];
+	        this.isSupported = source["isSupported"];
+	    }
+	}
+
+}
+

@@ -18,6 +18,7 @@ import (
 	"uptik/internal/adapters/storage/sqlite"
 	"uptik/internal/domain"
 	"uptik/internal/ports"
+	"uptik/internal/updater"
 	"uptik/internal/usecases"
 
 	"github.com/go-rod/rod"
@@ -35,6 +36,7 @@ type App struct {
 	schedUC           *usecases.ScheduleSlotsUseCase
 	pipelineUC        *usecases.UploadPipelineUseCase
 	schedulerSvc      *usecases.BackgroundSchedulerService
+	appUpdater        *updater.Updater
 	browser           *rod.Browser
 	settings          domain.Settings
 	mu                sync.Mutex
@@ -85,6 +87,7 @@ func NewApp() *App {
 		jobQueue:        jobQ,
 		scanUC:          scanUC,
 		schedUC:         schedUC,
+		appUpdater:      updater.NewUpdater(updater.DefaultRepo),
 		settings:        st,
 		autostartMgr:    autostartMgr,
 		isWindowVisible: true,
@@ -93,6 +96,9 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// Clean any old leftover binaries from past updates (Windows)
+	updater.CleanOldBinaries()
 
 	// Wiring Pipeline UseCase with event emitter
 	a.pipelineUC = usecases.NewUploadPipelineUseCase(
@@ -669,5 +675,36 @@ func (a *App) UpdateGoldenHours(hours []string) error {
 	a.mu.Unlock()
 
 	return a.SaveSettings(s)
+}
+
+// CheckForUpdates queries GitHub releases for an available software update.
+func (a *App) CheckForUpdates() (*updater.UpdateInfo, error) {
+	if a.appUpdater == nil {
+		a.appUpdater = updater.NewUpdater(updater.DefaultRepo)
+	}
+	return a.appUpdater.CheckForUpdate(context.Background(), a.GetAppVersion())
+}
+
+// ApplyUpdate downloads, verifies, and installs the update in-place.
+func (a *App) ApplyUpdate(info updater.UpdateInfo) (bool, error) {
+	if a.appUpdater == nil {
+		a.appUpdater = updater.NewUpdater(updater.DefaultRepo)
+	}
+
+	progressFn := func(percent int) {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "update:progress", percent)
+		}
+	}
+
+	if err := a.appUpdater.ApplyUpdate(context.Background(), &info, progressFn); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// RestartApp relaunches the updated application and terminates the old process.
+func (a *App) RestartApp() error {
+	return updater.RestartApplication()
 }
 

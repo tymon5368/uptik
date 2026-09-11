@@ -20,6 +20,21 @@
 
 ---
 
+## ⚡ Quick Install (Linux & macOS)
+
+Install or update UpTik with a single command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tymon5368/uptik/main/scripts/install.sh | bash
+```
+
+> **Note**:
+> - **Linux**: Installs to `~/.local/bin/uptik`, generates a `.desktop` application menu entry and icon.
+> - **macOS**: Installs to `/Applications/UpTik.app` and clears the Gatekeeper quarantine flag automatically.
+> - **Windows**: Download the `.exe` setup installer or portable `.zip` directly from [Latest Releases](https://github.com/tymon5368/uptik/releases/latest).
+
+---
+
 ## 🌟 Key Features
 
 ### 1. Omnichannel Golden Hour Scheduler
@@ -48,6 +63,12 @@
 - Engineered on **Svelte 5** leveraging modern runes (`$state`, `$derived`, `$effect`) for reactive rendering performance.
 - Sleek, Netflix Studio-inspired dark aesthetic featuring accessible tabbed navigation powered by **Ark UI Svelte**.
 - **100% Lucide Icons** (`lucide-svelte`) for a consistent, professional design system free of arbitrary emoji glyphs.
+
+### 7. In-Place Auto-Updater (Zero-Friction Updates)
+- **Automated Update Checks**: Discovers releases via the official GitHub Releases API, with non-intrusive UI alerts and on-demand check in Settings.
+- **Cryptographic Verification**: Validates downloaded release archive against the official `SHA256SUMS.txt` manifest before extraction.
+- **Atomic In-Place Replacement**: Safely swaps the running binary (POSIX atomic file rename; Windows `.old` swap pattern).
+- **One-Click Restart**: Restarts into the new release with a single button click without manual reinstallation.
 
 ---
 

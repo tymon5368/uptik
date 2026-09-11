@@ -36,7 +36,10 @@
     Zap,
     Rocket,
     Save,
-    Plus
+    Plus,
+    Download,
+    RotateCcw,
+    CheckCircle
   } from 'lucide-svelte';
 
   import {
@@ -61,10 +64,15 @@
     ToggleAutoUpload,
     SetPublishMode,
     TriggerAutoUploadNow,
-    UpdateGoldenHours
+    UpdateGoldenHours,
+    GetAppVersion,
+    CheckForUpdates,
+    ApplyUpdate,
+    RestartApp
   } from '../wailsjs/go/main/App';
   import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
   import type { VideoItem, Settings, HistoryRecord, LogEntry, UploadProgress } from './lib/types';
+  import type { updater } from '../wailsjs/go/models';
   import logoMark from './assets/images/logo-mark.png';
 
   const platforms = [
@@ -135,6 +143,15 @@
   let editTitle = $state<string>('');
   let editDate = $state<string>('');
   let editTime = $state<string>('');
+
+  // Auto-Update State (Level 2 Self-Update)
+  let appVersion = $state<string>('1.0.0');
+  let updateInfo = $state<updater.UpdateInfo | null>(null);
+  let isCheckingUpdate = $state<boolean>(false);
+  let isApplyingUpdate = $state<boolean>(false);
+  let updateProgress = $state<number>(0);
+  let isUpdateComplete = $state<boolean>(false);
+  let updateCheckMessage = $state<string>('');
 
   // Derived state
   let filteredVideos = $derived(
@@ -539,6 +556,53 @@
     await handleUpdateGoldenHours(preset);
   }
 
+  // Auto-Update Handlers (Level 2 Self-Update)
+  async function handleCheckUpdate(silent = false) {
+    if (isCheckingUpdate || isApplyingUpdate) return;
+    isCheckingUpdate = true;
+    updateCheckMessage = '';
+    try {
+      const info = await CheckForUpdates();
+      updateInfo = info;
+      if (info && !info.available && !silent) {
+        updateCheckMessage = `Bạn đang sử dụng phiên bản mới nhất (v${info.currentVersion}).`;
+      }
+    } catch (err: any) {
+      if (!silent) {
+        addLog('error', `Lỗi kiểm tra cập nhật: ${err?.message || err}`);
+      }
+    } finally {
+      isCheckingUpdate = false;
+    }
+  }
+
+  async function handleApplyUpdate() {
+    if (!updateInfo || !updateInfo.available || isApplyingUpdate) return;
+    isApplyingUpdate = true;
+    updateProgress = 0;
+    try {
+      addLog('info', `Bắt đầu tải và tự động cập nhật UpTik lên v${updateInfo.latestVersion}...`);
+      const ok = await ApplyUpdate(updateInfo);
+      if (ok) {
+        isUpdateComplete = true;
+        addLog('success', `Đã cập nhật UpTik lên phiên bản v${updateInfo.latestVersion} thành công!`);
+      }
+    } catch (err: any) {
+      addLog('error', `Lỗi tự động cập nhật: ${err?.message || err}`);
+    } finally {
+      isApplyingUpdate = false;
+    }
+  }
+
+  async function handleRestartApp() {
+    try {
+      addLog('info', 'Đang khởi động lại UpTik...');
+      await RestartApp();
+    } catch (err: any) {
+      addLog('error', `Lỗi khởi động lại ứng dụng: ${err?.message || err}`);
+    }
+  }
+
   let logContainer: HTMLElement | null = null;
   $effect(() => {
     if (logs.length && autoScrollLogs && logContainer) {
@@ -551,6 +615,19 @@
   onMount(() => {
     loadInitialData();
     checkPendingRecovery();
+
+    GetAppVersion().then(v => {
+      if (v) appVersion = v;
+    });
+
+    EventsOn('update:progress', (percent: number) => {
+      updateProgress = percent;
+    });
+
+    // Check updates quietly in background after 3 seconds
+    setTimeout(() => {
+      handleCheckUpdate(true);
+    }, 3000);
 
     // Timer interval to refresh countdown and scheduler status
     schedulerTimerInterval = setInterval(() => {
@@ -643,6 +720,7 @@
     EventsOff('queue_recovered');
     EventsOff('scheduler_toggled');
     EventsOff('scheduler_notification');
+    EventsOff('update:progress');
   });
 </script>
 
@@ -704,6 +782,17 @@
 
     <!-- Top Action Buttons -->
     <div class="flex items-center gap-2">
+      {#if updateInfo?.available}
+        <button
+          onclick={() => activeTab = 'settings'}
+          class="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-full transition shadow-[0_0_12px_rgba(6,182,212,0.2)] animate-pulse"
+          title="Có phiên bản mới v{updateInfo.latestVersion}. Bấm để cập nhật"
+        >
+          <Sparkles class="w-3.5 h-3.5 text-cyan-400" />
+          <span>v{updateInfo.latestVersion} Mới!</span>
+        </button>
+      {/if}
+
       <!-- Quick Platform Open Dropdown / Buttons -->
       <div class="hidden sm:flex items-center gap-1 bg-neutral-900 border border-neutral-800 rounded-lg p-0.5">
         <button
@@ -846,10 +935,13 @@
 
           <Tabs.Trigger
             value="settings"
-            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white"
+            class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition duration-150 data-[selected]:bg-[#E50914] data-[selected]:text-white text-neutral-400 hover:text-white relative"
           >
             <SettingsIcon class="w-4 h-4" />
             <span>Cài Đặt</span>
+            {#if updateInfo?.available}
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            {/if}
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -1672,6 +1764,103 @@
                 <div class="w-9 h-5 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#E50914]"></div>
               </label>
             </div>
+          </div>
+          <!-- SOFTWARE UPDATE SECTION (AUTO-UPDATE LEVEL 2) -->
+          <div class="bg-neutral-900/80 border border-neutral-700/60 p-4 rounded-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-neutral-800 pb-2.5">
+              <div>
+                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Sparkles class="w-4 h-4 text-cyan-400" />
+                  <span>Cập Nhật Phần Mềm Tự Động (Auto-Updater)</span>
+                </span>
+                <p class="text-[11px] text-neutral-400 mt-0.5">
+                  Phiên bản hiện tại: <span class="font-mono text-white font-semibold">v{appVersion}</span>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onclick={() => handleCheckUpdate(false)}
+                disabled={isCheckingUpdate || isApplyingUpdate}
+                class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-50 text-xs font-semibold text-neutral-200 rounded-lg border border-neutral-700 transition flex items-center gap-1.5"
+              >
+                <RefreshCw class="w-3.5 h-3.5 {isCheckingUpdate ? 'animate-spin' : ''}" />
+                <span>{isCheckingUpdate ? 'Đang kiểm tra...' : 'Kiểm tra cập nhật'}</span>
+              </button>
+            </div>
+
+            {#if updateInfo}
+              {#if updateInfo.available}
+                <div class="p-3.5 bg-cyan-950/30 border border-cyan-800/60 rounded-xl space-y-3">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="space-y-1 flex-1">
+                      <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 bg-cyan-500 text-black text-[10px] font-extrabold rounded">CÓ BẢN MỚI</span>
+                        <span class="text-xs font-bold text-white">UpTik v{updateInfo.latestVersion}</span>
+                        {#if updateInfo.publishedAt}
+                          <span class="text-[10px] text-neutral-400">({new Date(updateInfo.publishedAt).toLocaleDateString()})</span>
+                        {/if}
+                      </div>
+                      {#if updateInfo.releaseNotes}
+                        <p class="text-[11px] text-neutral-300 line-clamp-3 leading-relaxed">
+                          {updateInfo.releaseNotes}
+                        </p>
+                      {/if}
+                    </div>
+
+                    {#if !isUpdateComplete}
+                      <button
+                        type="button"
+                        onclick={handleApplyUpdate}
+                        disabled={isApplyingUpdate}
+                        class="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-xs font-bold text-black rounded-lg transition shrink-0 flex items-center gap-1.5 shadow-md active:scale-95"
+                      >
+                        <Download class="w-3.5 h-3.5" />
+                        <span>{isApplyingUpdate ? 'Đang cập nhật...' : 'Cập nhật ngay'}</span>
+                      </button>
+                    {:else}
+                      <button
+                        type="button"
+                        onclick={handleRestartApp}
+                        class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-xs font-bold text-black rounded-lg transition shrink-0 flex items-center gap-1.5 shadow-md active:scale-95 animate-pulse"
+                      >
+                        <RotateCcw class="w-3.5 h-3.5" />
+                        <span>Khởi động lại ngay</span>
+                      </button>
+                    {/if}
+                  </div>
+
+                  {#if isApplyingUpdate}
+                    <div class="space-y-1.5 pt-1">
+                      <div class="flex justify-between text-[11px] text-neutral-300">
+                        <span>Đang tải bản cập nhật và kiểm tra mã SHA256...</span>
+                        <span class="font-mono text-cyan-400">{updateProgress}%</span>
+                      </div>
+                      <div class="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-cyan-500 h-1.5 transition-all duration-300" style="width: {updateProgress}%"></div>
+                      </div>
+                    </div>
+                  {/if}
+
+                  {#if isUpdateComplete}
+                    <div class="text-[11px] text-emerald-400 flex items-center gap-1.5 pt-1">
+                      <CheckCircle class="w-3.5 h-3.5 shrink-0" />
+                      <span>Đã tải và cài đặt bản cập nhật thành công! Hãy nhấn "Khởi động lại ngay" để trải nghiệm.</span>
+                    </div>
+                  {/if}
+                </div>
+              {:else if updateCheckMessage}
+                <div class="text-[11px] text-neutral-400 flex items-center gap-1.5 py-1">
+                  <CheckCircle class="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{updateCheckMessage}</span>
+                </div>
+              {/if}
+            {:else if updateCheckMessage}
+              <div class="text-[11px] text-neutral-400 flex items-center gap-1.5 py-1">
+                <CheckCircle class="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span>{updateCheckMessage}</span>
+              </div>
+            {/if}
           </div>
 
           <div class="pt-4 border-t border-neutral-800 flex items-center justify-between">
