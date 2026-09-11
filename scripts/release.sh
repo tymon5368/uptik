@@ -27,9 +27,10 @@ echo "✅ Đã cập nhật version.go -> ${VERSION}"
 sed -i "s/\"productVersion\": \".*\"/\"productVersion\": \"${VERSION}\"/" wails.json
 echo "✅ Đã cập nhật wails.json -> ${VERSION}"
 
-# 3. Cập nhật version trong frontend/package.json
+# 3. Cập nhật version trong frontend/package.json và App.svelte
 sed -i "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" frontend/package.json
-echo "✅ Đã cập nhật frontend/package.json -> ${VERSION}"
+sed -i "s/let appVersion = \$state<string>('.*');/let appVersion = \$state<string>('${VERSION}');/" frontend/src/App.svelte
+echo "✅ Đã cập nhật frontend/package.json & App.svelte -> ${VERSION}"
 
 # 4. Chạy kiểm thử Frontend & TypeScript
 echo "🔍 Kiểm tra chất lượng frontend..."
@@ -42,7 +43,7 @@ go test -tags "webkit2_41" ./...
 echo "✅ Backend test suite 100% passed!"
 
 # 6. Git commit và tạo Tag
-git add version.go wails.json frontend/package.json frontend/package.json.md5 2>/dev/null || git add version.go wails.json frontend/package.json
+git add version.go wails.json frontend/package.json frontend/src/App.svelte
 if ! git diff --cached --quiet; then
   git commit -m "chore(release): bump version to ${TAG}"
 fi

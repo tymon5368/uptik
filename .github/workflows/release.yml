@@ -144,6 +144,7 @@ jobs:
           sed -i.bak "s/Version = \".*\"/Version = \"${VERSION}\"/" version.go || sed -i "" "s/Version = \".*\"/Version = \"${VERSION}\"/" version.go || true
           sed -i.bak "s/\"productVersion\": \".*\"/\"productVersion\": \"${VERSION}\"/" wails.json || sed -i "" "s/\"productVersion\": \".*\"/\"productVersion\": \"${VERSION}\"/" wails.json || true
           sed -i.bak "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" frontend/package.json || sed -i "" "s/\"version\": \".*\"/\"version\": \"${VERSION}\"/" frontend/package.json || true
+          sed -i.bak "s/let appVersion = \$state<string>('.*');/let appVersion = \$state<string>('${VERSION}');/" frontend/src/App.svelte || sed -i "" "s/let appVersion = \$state<string>('.*');/let appVersion = \$state<string>('${VERSION}');/" frontend/src/App.svelte || true
 
       - name: Build Application with Wails
         shell: bash
