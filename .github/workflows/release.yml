@@ -239,6 +239,9 @@ EOF
           ditto -c -k --sequesterRsrc --keepParent build/bin/uptik.app "artifacts/uptik-${VERSION}-macos-universal.zip"
 
           # 2. Apple Disk Image (DMG for standard drag-and-drop installation)
+          mkdir -p dmg-staging
+          cp -R build/bin/uptik.app dmg-staging/
+
           brew install create-dmg || true
           if command -v create-dmg &> /dev/null; then
             create-dmg \
@@ -250,18 +253,16 @@ EOF
               --hide-extension "uptik.app" \
               --app-drop-link 440 190 \
               "artifacts/uptik-${VERSION}-macos-universal.dmg" \
-              "build/bin/uptik.app" || true
+              "dmg-staging" || true
           fi
 
           # Fallback to hdiutil if create-dmg is unavailable or fails
           if [ ! -f "artifacts/uptik-${VERSION}-macos-universal.dmg" ]; then
             echo "create-dmg not used or failed, generating DMG via hdiutil..."
-            mkdir -p dmg-root
-            cp -R build/bin/uptik.app dmg-root/
-            ln -s /Applications dmg-root/Applications
-            hdiutil create -volname "UpTik" -srcfolder dmg-root -ov -format UDZO "artifacts/uptik-${VERSION}-macos-universal.dmg"
-            rm -rf dmg-root
+            ln -s /Applications dmg-staging/Applications
+            hdiutil create -volname "UpTik" -srcfolder dmg-staging -ov -format UDZO "artifacts/uptik-${VERSION}-macos-universal.dmg"
           fi
+          rm -rf dmg-staging
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
