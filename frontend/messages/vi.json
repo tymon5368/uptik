@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Tự động phân bổ vào {count} khung giờ vàng cho 30 ngày tiếp theo",
   "btn_schedule_multichannel": "LÊN LỊCH ĐA KÊNH ({count})",
   "btn_stop_upload": "DỪNG LẠI",
+  "btn_trigger_now": "Đăng Ngay 1 Video",
+  "btn_trigger_now_tooltip": "Lấy 1 video đầu hàng chờ và upload đăng ngay lập tức",
+  "btn_upload_now": "Đăng ngay",
+  "queue_btn_upload_now_tooltip": "Đăng ngay video này lên các kênh đã chọn",
   "uploading_progress": "Đang upload: {current}/{total}",
   "recovery_banner_detected": "Hệ thống phát hiện {count} video trong hàng chờ SQLite từ phiên trước chưa upload xong.",
   "recovery_cancel_queue": "Xóa Hàng Chờ Cũ",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Xem dạng lưới",
+  "view_list": "Xem dạng danh sách",
+  "queue_btn_play": "Phát",
+  "queue_btn_play_tooltip": "Mở xem video này",
+  "player_dialog_title": "Trình Phát Video",
+  "player_open_external": "Mở bằng trình phát ngoài (VLC/MPV)",
+  "player_unsupported": "Trình duyệt không hỗ trợ định dạng video này"
 }

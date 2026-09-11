@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Verdeel video's automatisch over {count} gouden uren gedurende 30 dagen",
   "btn_schedule_multichannel": "ALLES PLANNEN ({count})",
   "btn_stop_upload": "STOPPEN",
+  "btn_trigger_now": "Nu 1 video publiceren",
+  "btn_trigger_now_tooltip": "Upload en publiceer de volgende video in de wachtrij direct",
+  "btn_upload_now": "Nu publiceren",
+  "queue_btn_upload_now_tooltip": "Publiceer deze video direct op de geselecteerde kanalen",
   "uploading_progress": "Uploaden: {current}/{total}",
   "recovery_banner_detected": "Systeem heeft {count} onvoltooide uploadtaken gedetecteerd in de SQLite-wachtrij van de vorige sessie.",
   "recovery_cancel_queue": "Oude wachtrij wissen",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Rasterweergave",
+  "view_list": "Lijstweergave",
+  "queue_btn_play": "Afspelen",
+  "queue_btn_play_tooltip": "Bekijk deze video",
+  "player_dialog_title": "Videospeler",
+  "player_open_external": "Openen in systeemspeler",
+  "player_unsupported": "Browser ondersteunt dit videoformaat niet"
 }

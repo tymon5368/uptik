@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Attribuer automatiquement les {count} créneaux d'or sur 30 jours",
   "btn_schedule_multichannel": "PROGRAMMER TOUT ({count})",
   "btn_stop_upload": "ARRÊTER",
+  "btn_trigger_now": "Publier 1 vidéo maintenant",
+  "btn_trigger_now_tooltip": "Téléverser et publier immédiatement la prochaine vidéo",
+  "btn_upload_now": "Publier maintenant",
+  "queue_btn_upload_now_tooltip": "Publier immédiatement cette vidéo sur les canaux sélectionnés",
   "uploading_progress": "Téléversement: {current}/{total}",
   "recovery_banner_detected": "Le système a détecté {count} tâches inachevées dans la file d'attente SQLite.",
   "recovery_cancel_queue": "Effacer l'ancienne file",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Vue grille",
+  "view_list": "Vue liste détaillée",
+  "queue_btn_play": "Lire",
+  "queue_btn_play_tooltip": "Aperçu de cette vidéo",
+  "player_dialog_title": "Lecteur vidéo",
+  "player_open_external": "Ouvrir dans le lecteur système",
+  "player_unsupported": "Le navigateur ne prend pas en charge ce format vidéo"
 }

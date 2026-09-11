@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,6 +50,8 @@ type App struct {
 	isQuitting        bool
 	isWindowVisible   bool
 	onSettingsUpdated func(s domain.Settings)
+	streamPort        int
+	streamServer      *http.Server
 }
 
 func NewApp() *App {
@@ -84,7 +90,7 @@ func NewAppWithDBPath(dbPath string) *App {
 		st.AutoStart = autostartMgr.IsEnabled()
 	}
 
-	return &App{
+	app := &App{
 		storage:         storage,
 		registry:        reg,
 		jobQueue:        jobQ,
@@ -95,6 +101,8 @@ func NewAppWithDBPath(dbPath string) *App {
 		autostartMgr:    autostartMgr,
 		isWindowVisible: true,
 	}
+	app.startVideoStreamServer()
+	return app
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -253,6 +261,119 @@ func (a *App) OpenInFileManager(targetPath string) error {
 		targetPath = a.settings.VideoFolder
 	}
 	return exec.Command("xdg-open", targetPath).Start()
+}
+
+// OpenInDefaultPlayer opens the video file in the desktop OS's default media player
+func (a *App) OpenInDefaultPlayer(videoPath string) error {
+	if videoPath == "" {
+		return fmt.Errorf("empty video path")
+	}
+	resolvedPath, err := filepath.EvalSymlinks(videoPath)
+	if err != nil {
+		resolvedPath = filepath.Clean(videoPath)
+	}
+	return exec.Command("xdg-open", resolvedPath).Start()
+}
+
+func (a *App) startVideoStreamServer() {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		fmt.Printf("Warning: failed to start video streaming listener: %v\n", err)
+		return
+	}
+	a.streamPort = l.Addr().(*net.TCPAddr).Port
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/video/stream", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		targetPath := r.URL.Query().Get("path")
+		if targetPath == "" {
+			http.Error(w, "missing path parameter", http.StatusBadRequest)
+			return
+		}
+
+		resolvedPath, err := filepath.EvalSymlinks(targetPath)
+		if err != nil {
+			resolvedPath = filepath.Clean(targetPath)
+		}
+
+		info, err := os.Stat(resolvedPath)
+		if err != nil || info.IsDir() {
+			http.Error(w, "video file not found", http.StatusNotFound)
+			return
+		}
+
+		ext := strings.ToLower(filepath.Ext(resolvedPath))
+		switch ext {
+		case ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi":
+			// valid video
+		default:
+			http.Error(w, "unsupported video format", http.StatusForbidden)
+			return
+		}
+
+		http.ServeFile(w, r, resolvedPath)
+	})
+
+	a.streamServer = &http.Server{Handler: mux}
+	go func() {
+		_ = a.streamServer.Serve(l)
+	}()
+}
+
+// GetVideoStreamURL returns a direct loopback streaming URL for the video file
+func (a *App) GetVideoStreamURL(videoPath string) string {
+	if a.streamPort == 0 {
+		return fmt.Sprintf("/api/video/stream?path=%s", url.QueryEscape(videoPath))
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d/api/video/stream?path=%s", a.streamPort, url.QueryEscape(videoPath))
+}
+
+// VideoAssetHandler streams local video files for the built-in HTML5 player
+func (a *App) VideoAssetHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/video/stream") {
+			targetPath := r.URL.Query().Get("path")
+			if targetPath == "" {
+				http.Error(w, "missing path parameter", http.StatusBadRequest)
+				return
+			}
+
+			resolvedPath, err := filepath.EvalSymlinks(targetPath)
+			if err != nil {
+				resolvedPath = filepath.Clean(targetPath)
+			}
+
+			info, err := os.Stat(resolvedPath)
+			if err != nil || info.IsDir() {
+				http.Error(w, "video file not found", http.StatusNotFound)
+				return
+			}
+
+			ext := strings.ToLower(filepath.Ext(resolvedPath))
+			switch ext {
+			case ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi":
+				// valid video
+			default:
+				http.Error(w, "unsupported video format", http.StatusForbidden)
+				return
+			}
+
+			// http.ServeFile natively supports HTTP Range headers (206 Partial Content)
+			// allowing instant seeking without buffering the entire file into memory
+			http.ServeFile(w, r, resolvedPath)
+			return
+		}
+
+		http.NotFound(w, r)
+	})
 }
 
 func (a *App) connectOrLaunchBrowser() error {

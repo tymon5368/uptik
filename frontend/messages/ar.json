@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "توزيع الفيديوهات تلقائياً على {count} ساعات ذروة خلال 30 يوماً",
   "btn_schedule_multichannel": "جدولة الكل ({count})",
   "btn_stop_upload": "إيقاف",
+  "btn_trigger_now": "نشر فيديو واحد الآن",
+  "btn_trigger_now_tooltip": "رفع ونشر الفيديو التالي في قائمة الانتظار فورياً",
+  "btn_upload_now": "نشر الآن",
+  "queue_btn_upload_now_tooltip": "نشر هذا الفيديو فورياً على القنوات المحددة",
   "uploading_progress": "جارٍ الرفع: {current}/{total}",
   "recovery_banner_detected": "اكتشف النظام {count} مهمة رفع غير مكتملة في قائمة الانتظار من الجلسة السابقة.",
   "recovery_cancel_queue": "مسح القائمة القديمة",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "عرض شبكي",
+  "view_list": "عرض القائمة المفصلة",
+  "queue_btn_play": "تشغيل",
+  "queue_btn_play_tooltip": "معاينة هذا الفيديو",
+  "player_dialog_title": "مشغل الفيديو",
+  "player_open_external": "فتح في مشغل النظام",
+  "player_unsupported": "المتصفح لا يدعم تنسيق هذا الفيديو"
 }

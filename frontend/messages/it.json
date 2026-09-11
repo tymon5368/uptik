@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Distribuisci automaticamente i video in {count} ore d'oro su 30 giorni",
   "btn_schedule_multichannel": "PROGRAMMA TUTTI ({count})",
   "btn_stop_upload": "STOP",
+  "btn_trigger_now": "Pubblica 1 video adesso",
+  "btn_trigger_now_tooltip": "Carica e pubblica subito il prossimo video in coda",
+  "btn_upload_now": "Pubblica adesso",
+  "queue_btn_upload_now_tooltip": "Pubblica immediatamente questo video sui canali selezionati",
   "uploading_progress": "Caricamento: {current}/{total}",
   "recovery_banner_detected": "Il sistema ha rilevato {count} caricamenti incompleti nella coda SQLite della sessione precedente.",
   "recovery_cancel_queue": "Svuota vecchia coda",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Vista a griglia",
+  "view_list": "Vista elenco dettagliata",
+  "queue_btn_play": "Riproduci",
+  "queue_btn_play_tooltip": "Anteprima di questo video",
+  "player_dialog_title": "Lettore video",
+  "player_open_external": "Apri nel lettore di sistema",
+  "player_unsupported": "Il browser non supporta questo formato video"
 }

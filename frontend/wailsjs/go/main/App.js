@@ -50,6 +50,10 @@ export function GetSupportedPlatforms() {
   return window['go']['main']['App']['GetSupportedPlatforms']();
 }
 
+export function GetVideoStreamURL(arg1) {
+  return window['go']['main']['App']['GetVideoStreamURL'](arg1);
+}
+
 export function HideApp() {
   return window['go']['main']['App']['HideApp']();
 }
@@ -72,6 +76,10 @@ export function IsWindowVisible() {
 
 export function OpenChromeForLogin() {
   return window['go']['main']['App']['OpenChromeForLogin']();
+}
+
+export function OpenInDefaultPlayer(arg1) {
+  return window['go']['main']['App']['OpenInDefaultPlayer'](arg1);
 }
 
 export function OpenInFileManager(arg1) {
@@ -156,4 +164,8 @@ export function UpdateGoldenHours(arg1) {
 
 export function UpdateModeGoldenHours(arg1, arg2) {
   return window['go']['main']['App']['UpdateModeGoldenHours'](arg1, arg2);
+}
+
+export function VideoAssetHandler() {
+  return window['go']['main']['App']['VideoAssetHandler']();
 }

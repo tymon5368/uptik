@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "30일 동안 {count}개의 황금 시간대에 동영상을 자동 배정합니다",
   "btn_schedule_multichannel": "전체 예약 발행 ({count})",
   "btn_stop_upload": "중지",
+  "btn_trigger_now": "1개 동영상 즉시 게시",
+  "btn_trigger_now_tooltip": "대기열의 다음 동영상을 즉시 업로드 및 게시",
+  "btn_upload_now": "즉시 게시",
+  "queue_btn_upload_now_tooltip": "이 동영상을 선택한 채널에 즉시 게시",
   "uploading_progress": "업로드 중: {current}/{total}",
   "recovery_banner_detected": "이전 세션의 SQLite 대기열에서 완료되지 않은 업로드 작업 {count}개를 감지했습니다.",
   "recovery_cancel_queue": "이전 대기열 정리",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "그리드 보기",
+  "view_list": "목록 상세 보기",
+  "queue_btn_play": "재생",
+  "queue_btn_play_tooltip": "이 동영상 미리보기",
+  "player_dialog_title": "동영상 플레이어",
+  "player_open_external": "시스템 플레이어에서 열기",
+  "player_unsupported": "브라우저가 이 동영상 형식을 지원하지 않습니다"
 }

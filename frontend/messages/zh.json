@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "在 30 天内自动将视频分配到 {count} 个黄金发布时间",
   "btn_schedule_multichannel": "全部排程 ({count})",
   "btn_stop_upload": "停止",
+  "btn_trigger_now": "立即发布1个视频",
+  "btn_trigger_now_tooltip": "立即上传并发布队列中的下一个视频",
+  "btn_upload_now": "立即发布",
+  "queue_btn_upload_now_tooltip": "立即将此视频发布到已选渠道",
   "uploading_progress": "正在上传: {current}/{total}",
   "recovery_banner_detected": "系统在 SQLite 队列中检测到上次会话残留的 {count} 个未完成上传任务。",
   "recovery_cancel_queue": "清理旧队列",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "网格视图",
+  "view_list": "列表详细视图",
+  "queue_btn_play": "播放",
+  "queue_btn_play_tooltip": "预览此视频",
+  "player_dialog_title": "视频播放器",
+  "player_open_external": "在系统播放器中打开",
+  "player_unsupported": "浏览器不支持此视频格式"
 }

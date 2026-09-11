@@ -3,6 +3,7 @@
 import {updater} from '../models';
 import {domain} from '../models';
 import {ports} from '../models';
+import {http} from '../models';
 
 export function ApplyUpdate(arg1:updater.UpdateInfo):Promise<boolean>;
 
@@ -28,6 +29,8 @@ export function GetSettings():Promise<domain.Settings>;
 
 export function GetSupportedPlatforms():Promise<Array<domain.PlatformInfo>>;
 
+export function GetVideoStreamURL(arg1:string):Promise<string>;
+
 export function HideApp():Promise<void>;
 
 export function IsCloseToTray():Promise<boolean>;
@@ -39,6 +42,8 @@ export function IsUploading():Promise<boolean>;
 export function IsWindowVisible():Promise<boolean>;
 
 export function OpenChromeForLogin():Promise<void>;
+
+export function OpenInDefaultPlayer(arg1:string):Promise<void>;
 
 export function OpenInFileManager(arg1:string):Promise<void>;
 
@@ -81,3 +86,5 @@ export function TriggerAutoUploadNow():Promise<void>;
 export function UpdateGoldenHours(arg1:Array<string>):Promise<void>;
 
 export function UpdateModeGoldenHours(arg1:string,arg2:Array<string>):Promise<void>;
+
+export function VideoAssetHandler():Promise<http.Handler>;

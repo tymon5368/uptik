@@ -9,6 +9,10 @@
   "btn_auto_schedule_title": "Auto allocate videos to {count} golden hours across 30 days",
   "btn_schedule_multichannel": "SCHEDULE ALL ({count})",
   "btn_stop_upload": "STOP",
+  "btn_trigger_now": "Publish Now (1 Video)",
+  "btn_trigger_now_tooltip": "Immediately upload and publish the next pending video",
+  "btn_upload_now": "Publish Now",
+  "queue_btn_upload_now_tooltip": "Immediately publish this video to all enabled channels",
   "uploading_progress": "Uploading: {current}/{total}",
   "recovery_banner_detected": "System detected {count} incomplete upload jobs in SQLite queue from previous session.",
   "recovery_cancel_queue": "Clear Old Queue",
@@ -208,5 +212,12 @@
   "lang_it": "Italiano",
   "lang_nl": "Nederlands",
   "lang_pl": "Polski",
-  "lang_pt": "Português"
+  "lang_pt": "Português",
+  "view_grid": "Grid view",
+  "view_list": "List detail view",
+  "queue_btn_play": "Play",
+  "queue_btn_play_tooltip": "Preview this video",
+  "player_dialog_title": "Video Player",
+  "player_open_external": "Open in System Player",
+  "player_unsupported": "Browser does not support this video format"
 }
