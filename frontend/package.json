@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && vite build",
     "preview": "vite preview",
     "compile:i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "check": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && svelte-check --tsconfig ./tsconfig.json"
