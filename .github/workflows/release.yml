@@ -68,14 +68,17 @@ jobs:
       matrix:
         platform:
           - name: Linux (amd64)
+            id: linux-amd64
             os: ubuntu-22.04
             target: linux/amd64
             tags: "webkit2_41"
           - name: Windows (amd64)
+            id: windows-amd64
             os: windows-latest
             target: windows/amd64
             tags: ""
           - name: macOS (Universal)
+            id: darwin-universal
             os: macos-latest
             target: darwin/universal
             tags: ""
@@ -201,7 +204,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.platform.target }}
+          name: artifacts-${{ matrix.platform.id }}
           path: artifacts/*
           if-no-files-found: error
 
