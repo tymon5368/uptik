@@ -3,7 +3,6 @@
 import {updater} from '../models';
 import {domain} from '../models';
 import {ports} from '../models';
-import {http} from '../models';
 
 export function ApplyUpdate(arg1:updater.UpdateInfo):Promise<boolean>;
 
@@ -86,4 +85,3 @@ export function TriggerAutoUploadNow():Promise<void>;
 export function UpdateGoldenHours(arg1:Array<string>):Promise<void>;
 
 export function UpdateModeGoldenHours(arg1:string,arg2:Array<string>):Promise<void>;
-

@@ -165,4 +165,3 @@ export function UpdateGoldenHours(arg1) {
 export function UpdateModeGoldenHours(arg1, arg2) {
   return window['go']['main']['App']['UpdateModeGoldenHours'](arg1, arg2);
 }
-
