@@ -16,6 +16,10 @@
   <strong>UpTik</strong> is a high-performance native desktop application designed to automate scheduling and omnichannel publishing of short-form videos across multiple creator platforms: <strong>TikTok Studio</strong>, <strong>YouTube Shorts</strong>, and <strong>Meta Business Suite (Facebook Reels)</strong> using standardized peak-engagement golden hours.
 </p>
 
+<br />
+
+<img src="uptik.png" alt="UpTik Desktop Studio Interface" width="100%" />
+
 </div>
 
 ---
