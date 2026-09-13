@@ -415,7 +415,10 @@
     handleOpenPlatform('tiktok');
   }
 
+  let isSavingSettings = false;
   async function handleSaveSettings() {
+    if (isSavingSettings) return;
+    isSavingSettings = true;
     try {
       await SaveSettings(settings);
       addLog('success', 'Settings saved successfully!');
@@ -427,6 +430,8 @@
         settings.startHidden = current.startHidden;
         settings.closeToTray = current.closeToTray;
       } catch {}
+    } finally {
+      isSavingSettings = false;
     }
   }
 

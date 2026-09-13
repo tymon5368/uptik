@@ -45,6 +45,7 @@ type App struct {
 	browser           *rod.Browser
 	settings          domain.Settings
 	mu                sync.Mutex
+	settingsMu        sync.Mutex
 	isUploading       bool
 	cancelUpload      context.CancelFunc
 	autostartMgr      *autostart.Manager
@@ -94,7 +95,7 @@ func NewAppWithDBPath(dbPath string) *App {
 			}
 		}
 	} else {
-		if autostartMgr.HasEntry() && !autostartMgr.IsEnabled() {
+		if autostartMgr.HasEntry() {
 			_ = autostartMgr.Set(false, false)
 		}
 	}
@@ -196,6 +197,9 @@ func (a *App) GetAppVersion() string {
 }
 
 func (a *App) SaveSettings(s domain.Settings) error {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
 	a.mu.Lock()
 	prevAutoStart := a.settings.AutoStart
 	prevStartHidden := a.settings.StartHidden

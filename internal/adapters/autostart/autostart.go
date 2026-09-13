@@ -224,22 +224,49 @@ func parseDesktopExecArgs(raw string) []string {
 	return tokens
 }
 
-// quoteDesktopArg quotes a command-line argument for an Exec= line if it contains spaces or reserved chars.
+// quoteDesktopArg quotes a command-line argument for an Exec= line if it contains reserved characters
+// per the XDG Desktop Entry Specification (space, tab, newline, ", ', \, >, <, ~, |, &, $, *, ?, #, (, ), `).
 func quoteDesktopArg(arg string) string {
-	if !strings.ContainsAny(arg, " \t\"'\\$") {
+	const reservedChars = " \t\n\"'\\><~|&;$*?#()`"
+	if !strings.ContainsAny(arg, reservedChars) {
 		return arg
 	}
 	var b strings.Builder
 	b.WriteByte('"')
 	for i := 0; i < len(arg); i++ {
 		c := arg[i]
-		if c == '"' || c == '\\' || c == '$' {
+		switch c {
+		case '"', '\\', '$', '`':
 			b.WriteByte('\\')
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
 		}
-		b.WriteByte(c)
 	}
 	b.WriteByte('"')
 	return b.String()
+}
+
+func isEnvAssignment(token string) bool {
+	idx := strings.Index(token, "=")
+	if idx <= 0 {
+		return false
+	}
+	// Paths containing directory separators are filenames (e.g. /opt/app=v2/uptik), not environment assignments
+	if strings.Contains(token, "/") || strings.Contains(token, `\`) {
+		return false
+	}
+	name := token[:idx]
+	for i, r := range name {
+		if r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			continue
+		}
+		if i > 0 && (r >= '0' && r <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func extractExecTarget(content string) string {
@@ -258,7 +285,7 @@ func extractExecTarget(content string) string {
 				continue
 			}
 			// Skip environment variable assignments VAR=VALUE
-			if strings.Contains(token, "=") {
+			if isEnvAssignment(token) {
 				continue
 			}
 			// Skip command flags

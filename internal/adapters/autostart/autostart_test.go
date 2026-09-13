@@ -330,3 +330,43 @@ func TestFindInstalledBinary(t *testing.T) {
 		}
 	}
 }
+
+func TestQuoteDesktopArgReservedChars(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"normal", "normal"},
+		{"/opt/app (x86)/bin", `"/opt/app (x86)/bin"`},
+		{"/opt/app;cmd", `"/opt/app;cmd"`},
+		{"/opt/app&bg", `"/opt/app&bg"`},
+		{"/opt/app$var", `"/opt/app\$var"`},
+		{"/opt/app`cmd`", "\"/opt/app\\`cmd\\`\""},
+		{"/opt/app\"quotes\"", `"/opt/app\"quotes\""`},
+	}
+
+	for _, tc := range tests {
+		got := quoteDesktopArg(tc.input)
+		if got != tc.expected {
+			t.Errorf("quoteDesktopArg(%q) = %q, want %q", tc.input, got, tc.expected)
+		}
+	}
+}
+
+func TestExtractExecTargetWithEqualsInPath(t *testing.T) {
+	content := `[Desktop Entry]
+Exec=env WEBKIT_FLAG=1 "/opt/app=v2/uptik" --hidden
+`
+	target := extractExecTarget(content)
+	if target != "/opt/app=v2/uptik" {
+		t.Errorf("expected /opt/app=v2/uptik, got %q", target)
+	}
+
+	if !isEnvAssignment("WEBKIT_FLAG=1") {
+		t.Errorf("expected WEBKIT_FLAG=1 to be identified as env assignment")
+	}
+	if isEnvAssignment("/opt/app=v2/uptik") {
+		t.Errorf("did not expect path with slash to be identified as env assignment")
+	}
+}
+
