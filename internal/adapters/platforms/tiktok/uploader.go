@@ -644,6 +644,8 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 	log("info", "⏳ Checking copyright status on TikTok Studio...")
 	lastLogTime := time.Time{}
 	wasChecking := false
+	consecutiveEvalErrors := 0
+	successfulEvals := 0
 
 	copyrightEvalScript := `() => {
 		const allEls = Array.from(document.querySelectorAll('div, section, p, span, label, [data-e2e*="copyright"]'));
@@ -741,7 +743,18 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 		}
 
 		res, err := page.Eval(copyrightEvalScript)
-		if err == nil && res != nil {
+		if err != nil {
+			consecutiveEvalErrors++
+			if consecutiveEvalErrors >= 5 {
+				return fmt.Errorf("repeated evaluation failures while waiting for copyright check: %w", err)
+			}
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		consecutiveEvalErrors = 0
+		successfulEvals++
+
+		if res != nil {
 			isChecking := res.Value.Get("isChecking").Bool()
 			isComplete := res.Value.Get("isComplete").Bool()
 			statusText := res.Value.Get("statusText").String()
@@ -772,9 +785,9 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			}
 		}
 
-		// If at least 8 seconds of polling elapsed without entering checking state and was never checking,
-		// then copyright check is either not enabled or already done
-		if time.Since(pollingStartTime) >= 8*time.Second && !wasChecking {
+		// If at least 8 seconds of polling elapsed without entering checking state, was never checking,
+		// and at least one DOM evaluation succeeded, then copyright check is either not enabled or already done
+		if time.Since(pollingStartTime) >= 8*time.Second && !wasChecking && successfulEvals > 0 {
 			log("info", "ℹ️ No copyright check in progress (ready to post).")
 			return nil
 		}

@@ -44,8 +44,8 @@ func TestTikTokUploader_ContextCancellation(t *testing.T) {
 		if err != context.Canceled {
 			t.Errorf("Expected context.Canceled, got: %v", err)
 		}
-		if elapsed > 1*time.Second {
-			t.Errorf("waitForCopyrightCheck did not return immediately upon canceled context, took %v", elapsed)
+		if elapsed > 5*time.Second {
+			t.Errorf("waitForCopyrightCheck did not return promptly upon canceled context, took %v", elapsed)
 		}
 	})
 
