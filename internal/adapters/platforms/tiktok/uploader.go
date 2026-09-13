@@ -323,10 +323,15 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		_, _ = page.Eval(evalScript, item.CustomTitle, targetDay, targetMonth, targetHour, targetMin)
 		time.Sleep(1 * time.Second)
 
-		// Đảm bảo video tải lên hoàn tất trước khi bấm Schedule
+		// 1. Đảm bảo video tải lên hoàn tất trước khi bấm Schedule
 		if err := p.waitForVideoUpload(ctx, page, log); err != nil {
 			return err
 		}
+		// 2. Chờ TikTok kiểm tra bản quyền xong trước khi bấm Schedule
+		if err := p.waitForCopyrightCheck(ctx, page, log); err != nil {
+			return err
+		}
+		// 3. Chờ nút Schedule sẵn sàng để click
 		if err := p.waitForPostButtonReady(ctx, page, log); err != nil {
 			return err
 		}
@@ -721,7 +726,11 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 	}`
 
 	// Wait 3 seconds to allow TikTok Studio to initiate copyright check after upload
-	time.Sleep(3 * time.Second)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(3 * time.Second):
+	}
 	pollingStartTime := time.Now()
 
 	for time.Since(pollingStartTime) < 150*time.Second {
