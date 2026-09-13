@@ -11,12 +11,17 @@ tiktok_schedule_history.json
 .DS_Store
 Gemini_Generated_Image_*
 
-# AI Agent Framework, Rules & Knowledge Catalogues (Proprietary)
-AGENTS.md
-CLAUDE.md
-.agents/
-.codegraph/
-.mcp.json
-docs/CP.md
-docs/IB.md
+# Environment & Secrets
+.env
+.env.*
+*.env
 
+# Cloudflare Wrangler & Build Artifacts
+.wrangler
+dist
+.pages
+
+
+.dev.vars*
+!.dev.vars.example
+!.env.example
