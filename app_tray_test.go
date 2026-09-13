@@ -2,12 +2,16 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"uptik/internal/domain"
 )
 
 func TestAppTrayAndAutostart(t *testing.T) {
-	app := NewApp()
+	tempDir := t.TempDir()
+	app := NewAppWithDBPath(filepath.Join(tempDir, "test_tray.db"))
+	app.autostartMgr.SetCustomDir(tempDir)
+	app.autostartMgr.SetCustomExec("/usr/bin/echo")
 
 	// Initial default checks
 	if !app.IsCloseToTray() {
@@ -60,5 +64,38 @@ func TestAppTrayAndAutostart(t *testing.T) {
 	}
 	if app.IsCloseToTray() != false {
 		t.Errorf("expected IsCloseToTray to return false")
+	}
+}
+
+func TestSaveSettingsAutostartFailureRollback(t *testing.T) {
+	tempDir := t.TempDir()
+	app := NewAppWithDBPath(filepath.Join(tempDir, "test_rollback.db"))
+
+	// Set custom dir to a path where MkdirAll fails (child of a non-dir file)
+	blockerFile := filepath.Join(tempDir, "blocker_file")
+	if err := os.WriteFile(blockerFile, []byte("file"), 0644); err != nil {
+		t.Fatalf("failed to create blocker file: %v", err)
+	}
+	impossibleDir := filepath.Join(blockerFile, "autostart_sub")
+	app.autostartMgr.SetCustomDir(impossibleDir)
+	app.autostartMgr.SetCustomExec("/usr/bin/echo")
+
+	initial := app.GetSettings()
+	initial.AutoStart = false
+	if err := app.SaveSettings(initial); err != nil {
+		t.Fatalf("failed to save initial settings: %v", err)
+	}
+
+	targetSettings := initial
+	targetSettings.AutoStart = true
+
+	err := app.SaveSettings(targetSettings)
+	if err == nil {
+		t.Fatalf("expected SaveSettings to return error when autostartMgr.Set fails, got nil")
+	}
+
+	current := app.GetSettings()
+	if current.AutoStart != false {
+		t.Errorf("expected app.settings.AutoStart to roll back to false upon autostart error, got %v", current.AutoStart)
 	}
 }

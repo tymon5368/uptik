@@ -45,6 +45,7 @@ type App struct {
 	browser           *rod.Browser
 	settings          domain.Settings
 	mu                sync.Mutex
+	settingsMu        sync.Mutex
 	isUploading       bool
 	cancelUpload      context.CancelFunc
 	autostartMgr      *autostart.Manager
@@ -87,9 +88,24 @@ func NewAppWithDBPath(dbPath string) *App {
 	}
 
 	autostartMgr := autostart.NewManager("uptik", "UpTik - TikTok Auto Scheduler", appIcon)
-	if autostartMgr.IsEnabled() != st.AutoStart {
-		st.AutoStart = autostartMgr.IsEnabled()
+	if autostartMgr.IsExplicitlyDisabled() {
+		// User explicitly disabled autostart externally in system settings (GNOME/KDE/XFCE)
+		st.AutoStart = false
+		if storage != nil {
+			_ = storage.Save(st)
+		}
+	} else if st.AutoStart {
+		if !autostartMgr.IsEnabled() {
+			if err := autostartMgr.Set(true, st.StartHidden); err != nil {
+				fmt.Printf("Warning: failed to heal autostart entry: %v\n", err)
+			}
+		}
+	} else {
+		if autostartMgr.HasEntry() {
+			_ = autostartMgr.Set(false, false)
+		}
 	}
+	st.AutoStart = autostartMgr.IsEnabled()
 
 	app := &App{
 		storage:         storage,
@@ -187,16 +203,23 @@ func (a *App) GetAppVersion() string {
 }
 
 func (a *App) SaveSettings(s domain.Settings) error {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
 	a.mu.Lock()
-	prevAutoStart := a.settings.AutoStart
-	prevStartHidden := a.settings.StartHidden
+	prevSettings := a.settings
 	a.settings = s
 	listener := a.onSettingsUpdated
 	a.mu.Unlock()
 
-	if a.autostartMgr != nil && (s.AutoStart != prevAutoStart || s.StartHidden != prevStartHidden) {
-		if err := a.autostartMgr.Set(s.AutoStart, s.StartHidden); err != nil {
-			fmt.Printf("Warning: failed to update autostart: %v\n", err)
+	if a.autostartMgr != nil {
+		if s.AutoStart != prevSettings.AutoStart || s.StartHidden != prevSettings.StartHidden || (s.AutoStart && !a.autostartMgr.IsEnabled()) {
+			if err := a.autostartMgr.Set(s.AutoStart, s.StartHidden); err != nil {
+				a.mu.Lock()
+				a.settings = prevSettings
+				a.mu.Unlock()
+				return fmt.Errorf("không thể cập nhật cấu hình khởi động cùng hệ thống: %w", err)
+			}
 		}
 	}
 

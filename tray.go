@@ -222,7 +222,14 @@ func initTray(app *App, iconBytes []byte) {
 				current := app.GetSettings()
 				newVal := !current.AutoStart
 				current.AutoStart = newVal
-				_ = app.SaveSettings(current)
+				if err := app.SaveSettings(current); err != nil {
+					if current.AutoStart {
+						mAuto.Uncheck()
+					} else {
+						mAuto.Check()
+					}
+					return
+				}
 				if newVal {
 					mAuto.Check()
 				} else {
