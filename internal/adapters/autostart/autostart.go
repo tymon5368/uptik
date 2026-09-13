@@ -206,6 +206,12 @@ func parseDesktopExecArgs(raw string) []string {
 			continue
 		}
 
+		if ch == '%' && i+1 < len(raw) && raw[i+1] == '%' {
+			cur.WriteByte('%')
+			i++
+			continue
+		}
+
 		if (ch == ' ' || ch == '\t') && !inDouble && !inSingle {
 			if cur.Len() > 0 {
 				tokens = append(tokens, cur.String())
@@ -225,9 +231,9 @@ func parseDesktopExecArgs(raw string) []string {
 }
 
 // quoteDesktopArg quotes a command-line argument for an Exec= line if it contains reserved characters
-// per the XDG Desktop Entry Specification (space, tab, newline, ", ', \, >, <, ~, |, &, $, *, ?, #, (, ), `).
+// per the XDG Desktop Entry Specification (space, tab, newline, ", ', \, >, <, ~, |, &, $, *, ?, #, (, ), `, %).
 func quoteDesktopArg(arg string) string {
-	const reservedChars = " \t\n\"'\\><~|&;$*?#()`"
+	const reservedChars = " \t\n\"'\\><~|&;$*?#()`%"
 	if !strings.ContainsAny(arg, reservedChars) {
 		return arg
 	}
@@ -239,6 +245,8 @@ func quoteDesktopArg(arg string) string {
 		case '"', '\\', '$', '`':
 			b.WriteByte('\\')
 			b.WriteByte(c)
+		case '%':
+			b.WriteString("%%")
 		default:
 			b.WriteByte(c)
 		}
@@ -280,8 +288,8 @@ func extractExecTarget(content string) string {
 		tokens := parseDesktopExecArgs(raw)
 
 		for _, token := range tokens {
-			// Skip env binary
-			if token == "env" {
+			// Skip env binary (both "env" and full path like "/usr/bin/env", "/bin/env")
+			if token == "env" || strings.HasSuffix(token, "/env") {
 				continue
 			}
 			// Skip environment variable assignments VAR=VALUE
@@ -296,6 +304,20 @@ func extractExecTarget(content string) string {
 		}
 	}
 	return ""
+}
+
+// IsExplicitlyDisabled returns true if an autostart desktop file exists but was intentionally
+// disabled by the desktop environment (e.g. Hidden=true or X-GNOME-Autostart-enabled=false).
+func (m *Manager) IsExplicitlyDisabled() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	contentBytes, err := os.ReadFile(m.GetDesktopFilePath())
+	if err != nil {
+		return false
+	}
+	content := string(contentBytes)
+	return strings.Contains(content, "Hidden=true") || strings.Contains(content, "X-GNOME-Autostart-enabled=false")
 }
 
 // HasEntry returns true if the autostart entry file exists on disk

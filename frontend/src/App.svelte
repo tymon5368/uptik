@@ -415,24 +415,23 @@
     handleOpenPlatform('tiktok');
   }
 
-  let isSavingSettings = false;
-  async function handleSaveSettings() {
-    if (isSavingSettings) return;
-    isSavingSettings = true;
-    try {
-      await SaveSettings(settings);
-      addLog('success', 'Settings saved successfully!');
-    } catch (err) {
-      addLog('error', `Error saving settings: ${err}`);
+  let savePromise: Promise<void> = Promise.resolve();
+  function handleSaveSettings() {
+    savePromise = savePromise.then(async () => {
       try {
-        const current = await GetSettings();
-        settings.autoStart = current.autoStart;
-        settings.startHidden = current.startHidden;
-        settings.closeToTray = current.closeToTray;
-      } catch {}
-    } finally {
-      isSavingSettings = false;
-    }
+        await SaveSettings(settings);
+        addLog('success', 'Settings saved successfully!');
+      } catch (err) {
+        addLog('error', `Error saving settings: ${err}`);
+        try {
+          const current = await GetSettings();
+          settings.autoStart = current.autoStart;
+          settings.startHidden = current.startHidden;
+          settings.closeToTray = current.closeToTray;
+        } catch {}
+      }
+    });
+    return savePromise;
   }
 
   async function handleLocaleChange(loc: SupportedLocale) {

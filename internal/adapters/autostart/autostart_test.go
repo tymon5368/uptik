@@ -343,6 +343,7 @@ func TestQuoteDesktopArgReservedChars(t *testing.T) {
 		{"/opt/app$var", `"/opt/app\$var"`},
 		{"/opt/app`cmd`", "\"/opt/app\\`cmd\\`\""},
 		{"/opt/app\"quotes\"", `"/opt/app\"quotes\""`},
+		{"/opt/app%20dir", `"/opt/app%%20dir"`},
 	}
 
 	for _, tc := range tests {
@@ -367,6 +368,47 @@ Exec=env WEBKIT_FLAG=1 "/opt/app=v2/uptik" --hidden
 	}
 	if isEnvAssignment("/opt/app=v2/uptik") {
 		t.Errorf("did not expect path with slash to be identified as env assignment")
+	}
+}
+
+func TestExtractExecTargetWithAbsoluteEnv(t *testing.T) {
+	content := `[Desktop Entry]
+Exec=/usr/bin/env WEBKIT_FLAG=1 /home/arch/.local/bin/uptik --hidden
+`
+	target := extractExecTarget(content)
+	if target != "/home/arch/.local/bin/uptik" {
+		t.Errorf("expected /home/arch/.local/bin/uptik, got %q", target)
+	}
+}
+
+func TestIsExplicitlyDisabled(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("skipping Linux-specific test")
+	}
+
+	tempDir := t.TempDir()
+	mgr := NewManager("test-disabled", "Test Disabled", nil)
+	mgr.SetCustomDir(tempDir)
+
+	if mgr.IsExplicitlyDisabled() {
+		t.Errorf("expected IsExplicitlyDisabled false when file does not exist")
+	}
+
+	desktopFile := mgr.GetDesktopFilePath()
+	if err := os.WriteFile(desktopFile, []byte("[Desktop Entry]\nHidden=true\n"), 0644); err != nil {
+		t.Fatalf("failed to write desktop file: %v", err)
+	}
+
+	if !mgr.IsExplicitlyDisabled() {
+		t.Errorf("expected IsExplicitlyDisabled true when Hidden=true")
+	}
+
+	if err := os.WriteFile(desktopFile, []byte("[Desktop Entry]\nX-GNOME-Autostart-enabled=false\n"), 0644); err != nil {
+		t.Fatalf("failed to write desktop file: %v", err)
+	}
+
+	if !mgr.IsExplicitlyDisabled() {
+		t.Errorf("expected IsExplicitlyDisabled true when X-GNOME-Autostart-enabled=false")
 	}
 }
 

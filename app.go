@@ -88,7 +88,13 @@ func NewAppWithDBPath(dbPath string) *App {
 	}
 
 	autostartMgr := autostart.NewManager("uptik", "UpTik - TikTok Auto Scheduler", appIcon)
-	if st.AutoStart {
+	if autostartMgr.IsExplicitlyDisabled() {
+		// User explicitly disabled autostart externally in system settings (GNOME/KDE/XFCE)
+		st.AutoStart = false
+		if storage != nil {
+			_ = storage.Save(st)
+		}
+	} else if st.AutoStart {
 		if !autostartMgr.IsEnabled() {
 			if err := autostartMgr.Set(true, st.StartHidden); err != nil {
 				fmt.Printf("Warning: failed to heal autostart entry: %v\n", err)
@@ -201,18 +207,16 @@ func (a *App) SaveSettings(s domain.Settings) error {
 	defer a.settingsMu.Unlock()
 
 	a.mu.Lock()
-	prevAutoStart := a.settings.AutoStart
-	prevStartHidden := a.settings.StartHidden
+	prevSettings := a.settings
 	a.settings = s
 	listener := a.onSettingsUpdated
 	a.mu.Unlock()
 
 	if a.autostartMgr != nil {
-		if s.AutoStart != prevAutoStart || s.StartHidden != prevStartHidden || (s.AutoStart && !a.autostartMgr.IsEnabled()) {
+		if s.AutoStart != prevSettings.AutoStart || s.StartHidden != prevSettings.StartHidden || (s.AutoStart && !a.autostartMgr.IsEnabled()) {
 			if err := a.autostartMgr.Set(s.AutoStart, s.StartHidden); err != nil {
 				a.mu.Lock()
-				a.settings.AutoStart = prevAutoStart
-				a.settings.StartHidden = prevStartHidden
+				a.settings = prevSettings
 				a.mu.Unlock()
 				return fmt.Errorf("không thể cập nhật cấu hình khởi động cùng hệ thống: %w", err)
 			}
