@@ -205,7 +205,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		}
 
 		// 3. Chờ nút Đăng ngay (Post Now) sẵn sàng để click
-		_ = p.waitForPostButtonReady(ctx, page, log)
+		if err := p.waitForPostButtonReady(ctx, page, log); err != nil {
+			return err
+		}
 	} else {
 		// Step 4: Parse Scheduled Date & Time
 		if item.ScheduledDate == "" || item.ScheduledTime == "" {
@@ -325,7 +327,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		if err := p.waitForVideoUpload(ctx, page, log); err != nil {
 			return err
 		}
-		_ = p.waitForPostButtonReady(ctx, page, log)
+		if err := p.waitForPostButtonReady(ctx, page, log); err != nil {
+			return err
+		}
 	}
 
 	// Step 6: Click Schedule / Post Button with Selector Fallback Matrix
@@ -356,7 +360,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 
 	_ = scheduleBtn.ScrollIntoView()
 	time.Sleep(300 * time.Millisecond)
-	_ = scheduleBtn.Click(proto.InputMouseButtonLeft, 1)
+	if err := scheduleBtn.Click(proto.InputMouseButtonLeft, 1); err != nil {
+		return fmt.Errorf("failed to click Post/Schedule button: %w", err)
+	}
 
 	if isPublishNow {
 		log("info", "⏳ Clicked Post Now, awaiting TikTok Studio confirmation...")
@@ -498,8 +504,30 @@ func (p *TikTokUploader) waitForVideoUpload(ctx context.Context, page *rod.Page,
 	log("info", "⏳ Checking video upload progress on TikTok Studio...")
 	startTime := time.Now()
 	lastLogTime := time.Time{}
+	consecutiveEvalErrors := 0
+	wasUploading := false
 
 	uploadEvalScript := `() => {
+		// 1. Check for explicit error/rejection
+		const errorSelectors = [
+			'.upload-error',
+			'[class*="error"]',
+			'[class*="fail"]',
+			'.file-error',
+			'[role="alert"]'
+		];
+		for (const sel of errorSelectors) {
+			const els = document.querySelectorAll(sel);
+			for (const el of els) {
+				const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+				if (txt.includes('failed') || txt.includes('error') || txt.includes('not supported') || 
+				    txt.includes('thất bại') || txt.includes('lỗi') || txt.includes('không được hỗ trợ')) {
+					return { isUploading: false, isFailed: true, isCompleted: false, text: el.innerText.trim() };
+				}
+			}
+		}
+
+		// 2. Check for upload progress or percentage
 		const progressSelectors = [
 			'.byte-progress-bar',
 			'[class*="progress"]',
@@ -522,16 +550,28 @@ func (p *TikTokUploader) waitForVideoUpload(ctx context.Context, page *rod.Page,
 				if (percentMatch) {
 					const pct = parseInt(percentMatch[1], 10);
 					if (pct < 100) {
-						return { isUploading: true, text: txt };
+						return { isUploading: true, isFailed: false, isCompleted: false, text: txt };
+					}
+					if (pct >= 100) {
+						return { isUploading: false, isFailed: false, isCompleted: true, text: txt };
 					}
 				}
 				if ((low.includes('uploading') || low.includes('đang tải lên')) &&
 					!low.includes('uploaded') && !low.includes('đã tải lên') && !low.includes('100%')) {
-					return { isUploading: true, text: txt };
+					return { isUploading: true, isFailed: false, isCompleted: false, text: txt };
+				}
+				if (low.includes('uploaded') || low.includes('đã tải lên') || low.includes('upload complete')) {
+					return { isUploading: false, isFailed: false, isCompleted: true, text: txt };
 				}
 			}
 		}
-		return { isUploading: false, text: '' };
+
+		// 3. Check for editor readiness as completion signal
+		const editor = document.querySelector('[contenteditable="true"], .caption-editor');
+		const filePreview = document.querySelector('.file-content, .upload-content, video, [class*="player"]');
+		const hasReadyContent = !!(editor || filePreview);
+
+		return { isUploading: false, isFailed: false, isCompleted: hasReadyContent, text: '' };
 	}`
 
 	for time.Since(startTime) < 180*time.Second {
@@ -542,11 +582,28 @@ func (p *TikTokUploader) waitForVideoUpload(ctx context.Context, page *rod.Page,
 		}
 
 		res, err := page.Eval(uploadEvalScript)
-		if err == nil && res != nil {
+		if err != nil {
+			consecutiveEvalErrors++
+			if consecutiveEvalErrors >= 5 {
+				return fmt.Errorf("repeated evaluation failures while waiting for video upload: %w", err)
+			}
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		consecutiveEvalErrors = 0
+
+		if res != nil {
+			isFailed := res.Value.Get("isFailed").Bool()
 			isUploading := res.Value.Get("isUploading").Bool()
+			isCompleted := res.Value.Get("isCompleted").Bool()
 			uploadText := res.Value.Get("text").String()
 
+			if isFailed {
+				return fmt.Errorf("video upload rejected or failed on TikTok Studio: %s", uploadText)
+			}
+
 			if isUploading {
+				wasUploading = true
 				if time.Since(lastLogTime) >= 5*time.Second {
 					msg := "⏳ Video upload in progress on TikTok Studio..."
 					if uploadText != "" {
@@ -558,19 +615,28 @@ func (p *TikTokUploader) waitForVideoUpload(ctx context.Context, page *rod.Page,
 				time.Sleep(2 * time.Second)
 				continue
 			}
+
+			if isCompleted {
+				log("info", "✅ Video upload completed on TikTok Studio.")
+				return nil
+			}
+
+			// If it was uploading and now neither uploading nor failed, give 2 seconds to stabilize
+			if wasUploading {
+				time.Sleep(2 * time.Second)
+				log("info", "✅ Video upload completed on TikTok Studio.")
+				return nil
+			}
 		}
 
-		// Not uploading anymore
-		break
+		time.Sleep(2 * time.Second)
 	}
 
-	log("info", "✅ Video upload completed on TikTok Studio.")
-	return nil
+	return fmt.Errorf("video upload timed out after 180 seconds")
 }
 
 func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Page, log func(level, msg string)) error {
 	log("info", "⏳ Checking copyright status on TikTok Studio...")
-	startTime := time.Now()
 	lastLogTime := time.Time{}
 	wasChecking := false
 
@@ -656,8 +722,9 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 
 	// Wait 3 seconds to allow TikTok Studio to initiate copyright check after upload
 	time.Sleep(3 * time.Second)
+	pollingStartTime := time.Now()
 
-	for time.Since(startTime) < 150*time.Second {
+	for time.Since(pollingStartTime) < 150*time.Second {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -696,8 +763,9 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			}
 		}
 
-		// If 6s elapsed without entering checking state, copyright check is either not enabled or already done
-		if time.Since(startTime) >= 6*time.Second && !wasChecking {
+		// If at least 8 seconds of polling elapsed without entering checking state and was never checking,
+		// then copyright check is either not enabled or already done
+		if time.Since(pollingStartTime) >= 8*time.Second && !wasChecking {
 			log("info", "ℹ️ No copyright check in progress (ready to post).")
 			return nil
 		}
@@ -706,7 +774,8 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 	}
 
 	if wasChecking {
-		log("warn", "⚠️ Copyright check wait timeout reached (150s). Proceeding to post video...")
+		log("warn", "⚠️ Copyright check wait timeout reached (150s). Aborting to prevent publishing unchecked video.")
+		return fmt.Errorf("tiktok copyright check timed out after 150 seconds")
 	}
 	return nil
 }
@@ -739,5 +808,5 @@ func (p *TikTokUploader) waitForPostButtonReady(ctx context.Context, page *rod.P
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return nil
+	return fmt.Errorf("post/schedule button not found or remained disabled after 20 seconds")
 }
