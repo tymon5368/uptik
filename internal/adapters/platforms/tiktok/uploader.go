@@ -323,10 +323,15 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		_, _ = page.Eval(evalScript, item.CustomTitle, targetDay, targetMonth, targetHour, targetMin)
 		time.Sleep(1 * time.Second)
 
-		// Đảm bảo video tải lên hoàn tất trước khi bấm Schedule
+		// 1. Đảm bảo video tải lên hoàn tất trước khi bấm Schedule
 		if err := p.waitForVideoUpload(ctx, page, log); err != nil {
 			return err
 		}
+		// 2. Chờ TikTok kiểm tra bản quyền xong trước khi bấm Schedule
+		if err := p.waitForCopyrightCheck(ctx, page, log); err != nil {
+			return err
+		}
+		// 3. Chờ nút Schedule sẵn sàng để click
 		if err := p.waitForPostButtonReady(ctx, page, log); err != nil {
 			return err
 		}
@@ -639,6 +644,8 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 	log("info", "⏳ Checking copyright status on TikTok Studio...")
 	lastLogTime := time.Time{}
 	wasChecking := false
+	consecutiveEvalErrors := 0
+	successfulEvals := 0
 
 	copyrightEvalScript := `() => {
 		const allEls = Array.from(document.querySelectorAll('div, section, p, span, label, [data-e2e*="copyright"]'));
@@ -721,7 +728,11 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 	}`
 
 	// Wait 3 seconds to allow TikTok Studio to initiate copyright check after upload
-	time.Sleep(3 * time.Second)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(3 * time.Second):
+	}
 	pollingStartTime := time.Now()
 
 	for time.Since(pollingStartTime) < 150*time.Second {
@@ -732,7 +743,18 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 		}
 
 		res, err := page.Eval(copyrightEvalScript)
-		if err == nil && res != nil {
+		if err != nil {
+			consecutiveEvalErrors++
+			if consecutiveEvalErrors >= 5 {
+				return fmt.Errorf("repeated evaluation failures while waiting for copyright check: %w", err)
+			}
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		consecutiveEvalErrors = 0
+		successfulEvals++
+
+		if res != nil {
 			isChecking := res.Value.Get("isChecking").Bool()
 			isComplete := res.Value.Get("isComplete").Bool()
 			statusText := res.Value.Get("statusText").String()
@@ -763,9 +785,9 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			}
 		}
 
-		// If at least 8 seconds of polling elapsed without entering checking state and was never checking,
-		// then copyright check is either not enabled or already done
-		if time.Since(pollingStartTime) >= 8*time.Second && !wasChecking {
+		// If at least 8 seconds of polling elapsed without entering checking state, was never checking,
+		// and at least one DOM evaluation succeeded, then copyright check is either not enabled or already done
+		if time.Since(pollingStartTime) >= 8*time.Second && !wasChecking && successfulEvals > 0 {
 			log("info", "ℹ️ No copyright check in progress (ready to post).")
 			return nil
 		}
