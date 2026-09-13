@@ -421,6 +421,12 @@
       addLog('success', 'Settings saved successfully!');
     } catch (err) {
       addLog('error', `Error saving settings: ${err}`);
+      try {
+        const current = await GetSettings();
+        settings.autoStart = current.autoStart;
+        settings.startHidden = current.startHidden;
+        settings.closeToTray = current.closeToTray;
+      } catch {}
     }
   }
 
@@ -2020,8 +2026,9 @@
                     <input
                       type="checkbox"
                       checked={settings.autoStart}
-                      onchange={(e) => {
+                      onchange={async (e) => {
                         settings.autoStart = e.currentTarget.checked;
+                        await handleSaveSettings();
                       }}
                       class="sr-only peer"
                     />
@@ -2045,8 +2052,9 @@
                       <input
                         type="checkbox"
                         checked={settings.startHidden}
-                        onchange={(e) => {
+                        onchange={async (e) => {
                           settings.startHidden = e.currentTarget.checked;
+                          await handleSaveSettings();
                         }}
                         class="sr-only peer"
                       />
@@ -2070,8 +2078,9 @@
                     <input
                       type="checkbox"
                       checked={settings.closeToTray}
-                      onchange={(e) => {
+                      onchange={async (e) => {
                         settings.closeToTray = e.currentTarget.checked;
+                        await handleSaveSettings();
                       }}
                       class="sr-only peer"
                     />
