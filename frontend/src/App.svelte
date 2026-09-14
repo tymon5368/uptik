@@ -849,7 +849,7 @@
     EventsOn('video_error', (item: VideoItem) => {
       const idx = videos.findIndex(v => v.id === item.id);
       if (idx !== -1) {
-        videos[idx].status = 'error';
+        videos[idx].status = (item.status as any) || 'error';
         videos[idx].errorMsg = item.errorMsg;
         videos = [...videos];
       }
@@ -1304,6 +1304,10 @@
                     <span class="flex items-center gap-1 text-[11px] text-[#E50914] bg-[#E50914]/15 border border-[#E50914]/40 px-2 py-0.5 rounded font-bold animate-pulse">
                       {m.status_uploading()}...
                     </span>
+                  {:else if v.status === 'restricted'}
+                    <span class="flex items-center gap-1 text-[11px] text-amber-400 bg-amber-950/80 border border-amber-800/80 px-2 py-0.5 rounded font-medium">
+                      <ShieldCheck class="w-3 h-3" /> {m.status_restricted()}
+                    </span>
                   {:else if v.status === 'error'}
                     <span class="flex items-center gap-1 text-[11px] text-red-400 bg-red-950 border border-red-800 px-2 py-0.5 rounded font-medium">
                       <AlertCircle class="w-3 h-3" /> {m.status_error()}
@@ -1511,6 +1515,10 @@
                       {:else if v.status === 'uploading'}
                         <span class="inline-flex items-center gap-1 text-[11px] text-[#E50914] bg-[#E50914]/15 border border-[#E50914]/40 px-2 py-0.5 rounded font-bold animate-pulse">
                           {m.status_uploading()}...
+                        </span>
+                      {:else if v.status === 'restricted'}
+                        <span class="inline-flex items-center gap-1 text-[11px] text-amber-400 bg-amber-950/80 border border-amber-800/80 px-2 py-0.5 rounded font-medium">
+                          <ShieldCheck class="w-3 h-3" /> {m.status_restricted()}
                         </span>
                       {:else if v.status === 'error'}
                         <span class="inline-flex items-center gap-1 text-[11px] text-red-400 bg-red-950 border border-red-800 px-2 py-0.5 rounded font-medium">

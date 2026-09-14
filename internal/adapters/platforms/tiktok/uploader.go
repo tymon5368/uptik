@@ -945,6 +945,7 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 					}
 					if !dismissed {
 						log("warn", "⚠️ Could not dismiss Content Restriction modal after retries. Post button may remain blocked.")
+						return fmt.Errorf("could not dismiss Content Restriction modal after retries")
 					}
 					time.Sleep(1 * time.Second)
 				}

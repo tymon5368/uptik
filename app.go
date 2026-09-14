@@ -617,7 +617,9 @@ func (a *App) StartOmnichannelUpload(queueItems []domain.VideoItem, channels []s
 			err = a.pipelineUC.ProcessJob(ctx, a.browser, job)
 			if err != nil {
 				failCount++
-				job.Video.Status = "error"
+				if job.Video.Status != "restricted" && job.Video.Status != "partial" {
+					job.Video.Status = "error"
+				}
 				job.Video.ErrorMsg = err.Error()
 				runtime.EventsEmit(a.ctx, "video_error", job.Video)
 				time.Sleep(2 * time.Second)

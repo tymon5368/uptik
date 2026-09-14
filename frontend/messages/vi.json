@@ -140,6 +140,7 @@
   "status_uploading": "Đang upload",
   "status_completed": "Hoàn thành",
   "status_error": "Lỗi",
+  "status_restricted": "Đã cách ly",
   "lang_en": "English",
   "lang_de": "Deutsch",
   "lang_ja": "日本語",

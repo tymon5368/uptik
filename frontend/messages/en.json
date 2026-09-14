@@ -140,6 +140,7 @@
   "status_uploading": "Uploading",
   "status_completed": "Completed",
   "status_error": "Error",
+  "status_restricted": "Quarantined",
   "lang_en": "English",
   "lang_de": "Deutsch",
   "lang_ja": "日本語",
