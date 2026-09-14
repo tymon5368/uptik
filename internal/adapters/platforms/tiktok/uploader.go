@@ -30,8 +30,11 @@ func (p *TikTokUploader) SetPolicyProvider(provider func() string) {
 func (p *TikTokUploader) GetRestrictedPolicy() string {
 	if p.policyProvider != nil {
 		pol := p.policyProvider()
-		if pol != "" {
-			return pol
+		if pol == domain.TikTokRestrictedPolicyPostAnyway {
+			return domain.TikTokRestrictedPolicyPostAnyway
+		}
+		if pol == domain.TikTokRestrictedPolicySkip {
+			return domain.TikTokRestrictedPolicySkip
 		}
 	}
 	return domain.TikTokRestrictedPolicySkip
@@ -438,7 +441,7 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 
 	for time.Since(startTime) < 90*time.Second {
 		pageInfo, err := page.Info()
-		if err == nil && (strings.Contains(pageInfo.URL, "/content") || strings.Contains(pageInfo.URL, "/manage")) {
+		if err == nil && strings.Contains(pageInfo.URL, "/content") {
 			submitted = true
 			break
 		}
@@ -588,14 +591,13 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	// Final Smart Confirmation Check before reporting error
 	if !submitted {
 		pageInfo, err := page.Info()
-		if err == nil && (strings.Contains(pageInfo.URL, "/content") || strings.Contains(pageInfo.URL, "/manage")) {
+		if err == nil && strings.Contains(pageInfo.URL, "/content") {
 			log("info", "Smart Confirmation: detected TikTok Studio /content redirect after timeout.")
 			submitted = true
 		} else {
 			finalCheck, _ := page.Eval(`() => {
 				const txt = (document.body.innerText || '').toLowerCase();
 				return txt.includes('your video has been published') || 
-				       txt.includes('has been uploaded') || 
 				       txt.includes('manage your posts') || 
 				       txt.includes('quản lý bài đăng') || 
 				       txt.includes('đã được đăng');
@@ -931,7 +933,26 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 				// Policy is post_anyway
 				log("warn", "⚠️ TikTok Studio Content Check flagged: Video may be restricted, but policy is 'post_anyway'. Dismissing warning modal to continue...")
 				if isRestrictedModalOpen {
-					_ = p.dismissRestrictedModal(page, log)
+					dismissed := false
+					for retry := 0; retry < 3; retry++ {
+						if p.dismissRestrictedModal(page, log) {
+							stillOpenRes, _ := page.Eval(`() => {
+								const modals = Array.from(document.querySelectorAll('[role="dialog"], .TUXModal, .TUXDialog, .modal-content, [class*="modal"], [class*="dialog"]'));
+								return modals.some(m => {
+									const t = (m.innerText || '').toLowerCase();
+									return t.includes('content may be restricted') || t.includes('nội dung có thể bị hạn chế');
+								});
+							}`)
+							if stillOpenRes == nil || !stillOpenRes.Value.Bool() {
+								dismissed = true
+								break
+							}
+						}
+						time.Sleep(500 * time.Millisecond)
+					}
+					if !dismissed {
+						log("warn", "⚠️ Could not dismiss Content Restriction modal after retries. Post button may remain blocked.")
+					}
 					time.Sleep(1 * time.Second)
 				}
 				return nil

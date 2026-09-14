@@ -244,3 +244,88 @@ func TestUploadPipelineQuarantine(t *testing.T) {
 		t.Errorf("Expected job state failed, got %s", savedJob.State)
 	}
 }
+
+func TestUploadPipelineQuarantine_CollisionAndPartial(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "uptik_quarantine_collision_*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dbPath := filepath.Join(tmpDir, "test.db")
+	storage, err := sqlite.NewStorage(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to initialize sqlite storage: %v", err)
+	}
+	defer storage.Close()
+
+	videoFolder := filepath.Join(tmpDir, "videos")
+	_ = os.MkdirAll(videoFolder, 0755)
+	restrictedFolder := filepath.Join(videoFolder, "restricted")
+	_ = os.MkdirAll(restrictedFolder, 0755)
+
+	// Pre-create existing file in restricted folder to trigger collision guard
+	existingInRestricted := filepath.Join(restrictedFolder, "sample.mp4")
+	_ = os.WriteFile(existingInRestricted, []byte("pre-existing quarantined video"), 0644)
+
+	// New video with identical name in input folder
+	videoFile := filepath.Join(videoFolder, "sample.mp4")
+	_ = os.WriteFile(videoFile, []byte("second video with same name"), 0644)
+
+	reg := platforms.NewRegistry()
+	reg.Register(&mockRestrictedPlatform{id: "tiktok", name: "TikTok Studio"})
+	reg.Register(&mockPlatform{id: "youtube", name: "YouTube Shorts"})
+
+	jobQueue := queue.NewPersistentJobQueue(storage)
+	pipeUC := NewUploadPipelineUseCase(reg, storage, jobQueue, nil)
+
+	item := domain.VideoItem{
+		Filename:    "sample.mp4",
+		FullPath:    videoFile,
+		CustomTitle: "Sample Video",
+		Channels:    map[string]domain.ChannelStatus{},
+	}
+
+	// Test collision-safe SafeQuarantine directly
+	err = pipeUC.SafeQuarantine(item)
+	if err != nil {
+		t.Fatalf("SafeQuarantine failed with collision: %v", err)
+	}
+
+	// Pre-existing file must be intact
+	content, err := os.ReadFile(existingInRestricted)
+	if err != nil || string(content) != "pre-existing quarantined video" {
+		t.Errorf("Pre-existing file was overwritten or corrupted!")
+	}
+
+	// Root file must be moved
+	if _, err := os.Stat(videoFile); !os.IsNotExist(err) {
+		t.Errorf("Original file was not moved from root folder")
+	}
+
+	// Test partial success with restricted channel
+	partialFile := filepath.Join(videoFolder, "partial.mp4")
+	_ = os.WriteFile(partialFile, []byte("partial content"), 0644)
+	partialItem := domain.VideoItem{
+		Filename:    "partial.mp4",
+		FullPath:    partialFile,
+		CustomTitle: "Partial Video",
+		Channels:    map[string]domain.ChannelStatus{},
+	}
+
+	ctx := context.Background()
+	enqueued, err := jobQueue.Enqueue(ctx, partialItem, []string{"youtube", "tiktok"})
+	if err != nil {
+		t.Fatalf("Enqueue failed: %v", err)
+	}
+
+	err = pipeUC.ProcessJob(ctx, nil, enqueued)
+	if err == nil {
+		t.Fatalf("Expected partial error, got nil")
+	}
+
+	// Verify that partial restricted video was quarantined
+	if _, err := os.Stat(partialFile); !os.IsNotExist(err) {
+		t.Errorf("Partial restricted video was not moved from root folder")
+	}
+}

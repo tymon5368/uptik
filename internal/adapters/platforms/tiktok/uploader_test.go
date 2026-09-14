@@ -80,4 +80,9 @@ func TestTikTokUploader_PolicyProvider(t *testing.T) {
 	if uploader.GetRestrictedPolicy() != "skip" {
 		t.Errorf("Expected policy 'skip', got '%s'", uploader.GetRestrictedPolicy())
 	}
+
+	policy = "unrecognized_value"
+	if uploader.GetRestrictedPolicy() != "skip" {
+		t.Errorf("Expected invalid policy to fall back safely to 'skip', got '%s'", uploader.GetRestrictedPolicy())
+	}
 }

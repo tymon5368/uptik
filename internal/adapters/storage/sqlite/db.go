@@ -179,7 +179,7 @@ func (s *Storage) Load() (domain.Settings, error) {
 	if loaded.MissedSlotPolicy == "" {
 		loaded.MissedSlotPolicy = "skip"
 	}
-	if loaded.TikTokRestrictedPolicy == "" {
+	if loaded.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && loaded.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
 		loaded.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
 	}
 	if loaded.Locale == "" {
@@ -212,6 +212,9 @@ func (s *Storage) Load() (domain.Settings, error) {
 }
 
 func (s *Storage) Save(st domain.Settings) error {
+	if st.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && st.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
+		st.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
+	}
 	data, err := json.Marshal(st)
 	if err != nil {
 		return err

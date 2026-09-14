@@ -58,7 +58,7 @@ func LoadSettings() Settings {
 	if s.MissedSlotPolicy == "" {
 		s.MissedSlotPolicy = "skip"
 	}
-	if s.TikTokRestrictedPolicy == "" {
+	if s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
 		s.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
 	}
 	if s.Locale == "" {
@@ -91,6 +91,9 @@ func LoadSettings() Settings {
 }
 
 func SaveSettingsToFile(s Settings) error {
+	if s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
+		s.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
+	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
