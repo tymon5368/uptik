@@ -140,6 +140,7 @@
   "status_uploading": "Đang upload",
   "status_completed": "Hoàn thành",
   "status_error": "Lỗi",
+  "status_restricted": "Đã cách ly",
   "lang_en": "English",
   "lang_de": "Deutsch",
   "lang_ja": "日本語",
@@ -219,5 +220,11 @@
   "queue_btn_play_tooltip": "Mở xem video này",
   "player_dialog_title": "Trình Phát Video",
   "player_open_external": "Mở bằng trình phát ngoài (VLC/MPV)",
-  "player_unsupported": "Trình duyệt không hỗ trợ định dạng video này"
+  "player_unsupported": "Trình duyệt không hỗ trợ định dạng video này",
+  "settings_tiktok_restricted_title": "Chính Sách Nội Dung Bị Hạn Chế (TikTok)",
+  "settings_tiktok_restricted_desc": "Cách xử lý khi TikTok Studio cảnh báo nội dung có thể bị hạn chế (Nội dung không nguyên bản, chất lượng thấp)",
+  "settings_tiktok_restricted_skip": "Bỏ qua & Cách ly (Khuyên dùng)",
+  "settings_tiktok_restricted_skip_desc": "Dừng tải lên để bảo vệ uy tín kênh, tự động di chuyển video vào thư mục restricted/ và chuyển sang video tiếp theo.",
+  "settings_tiktok_restricted_post": "Vẫn tiếp tục đăng (Bypass cảnh báo)",
+  "settings_tiktok_restricted_post_desc": "Tự động đóng popup cảnh báo và tiếp tục xuất bản video lên kênh bất chấp bị bóp tương tác."
 }

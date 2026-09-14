@@ -38,6 +38,7 @@ func GetDefaultSettings() Settings {
 		PublishMode:           domain.PublishModeSchedule,
 		AutoUploadEnabled:     false,
 		MissedSlotPolicy:      "skip",
+		TikTokRestrictedPolicy: domain.TikTokRestrictedPolicySkip,
 		Locale:                "en",
 	}
 }
@@ -56,6 +57,9 @@ func LoadSettings() Settings {
 	}
 	if s.MissedSlotPolicy == "" {
 		s.MissedSlotPolicy = "skip"
+	}
+	if s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
+		s.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
 	}
 	if s.Locale == "" {
 		s.Locale = "en"
@@ -87,6 +91,9 @@ func LoadSettings() Settings {
 }
 
 func SaveSettingsToFile(s Settings) error {
+	if s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && s.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
+		s.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
+	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err

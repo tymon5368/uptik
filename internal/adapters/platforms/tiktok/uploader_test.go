@@ -59,3 +59,30 @@ func TestTikTokUploader_ContextCancellation(t *testing.T) {
 		}
 	})
 }
+
+func TestTikTokUploader_PolicyProvider(t *testing.T) {
+	uploader := NewTikTokUploader()
+	// Default when provider is nil
+	if uploader.GetRestrictedPolicy() != "skip" {
+		t.Errorf("Expected default policy 'skip', got '%s'", uploader.GetRestrictedPolicy())
+	}
+
+	// Set dynamic policy provider
+	policy := "post_anyway"
+	uploader.SetPolicyProvider(func() string {
+		return policy
+	})
+	if uploader.GetRestrictedPolicy() != "post_anyway" {
+		t.Errorf("Expected policy 'post_anyway', got '%s'", uploader.GetRestrictedPolicy())
+	}
+
+	policy = "skip"
+	if uploader.GetRestrictedPolicy() != "skip" {
+		t.Errorf("Expected policy 'skip', got '%s'", uploader.GetRestrictedPolicy())
+	}
+
+	policy = "unrecognized_value"
+	if uploader.GetRestrictedPolicy() != "skip" {
+		t.Errorf("Expected invalid policy to fall back safely to 'skip', got '%s'", uploader.GetRestrictedPolicy())
+	}
+}

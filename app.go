@@ -67,7 +67,8 @@ func NewAppWithDBPath(dbPath string) *App {
 	}
 
 	reg := platforms.NewRegistry()
-	reg.Register(tiktok.NewTikTokUploader())
+	tiktokUploader := tiktok.NewTikTokUploader()
+	reg.Register(tiktokUploader)
 	reg.Register(youtube.NewYouTubeUploader())
 	reg.Register(facebook.NewFacebookUploader())
 
@@ -118,6 +119,14 @@ func NewAppWithDBPath(dbPath string) *App {
 		autostartMgr:    autostartMgr,
 		isWindowVisible: true,
 	}
+	tiktokUploader.SetPolicyProvider(func() string {
+		app.settingsMu.Lock()
+		defer app.settingsMu.Unlock()
+		if app.settings.TikTokRestrictedPolicy != "" {
+			return app.settings.TikTokRestrictedPolicy
+		}
+		return domain.TikTokRestrictedPolicySkip
+	})
 	app.startVideoStreamServer()
 	return app
 }
@@ -608,7 +617,9 @@ func (a *App) StartOmnichannelUpload(queueItems []domain.VideoItem, channels []s
 			err = a.pipelineUC.ProcessJob(ctx, a.browser, job)
 			if err != nil {
 				failCount++
-				job.Video.Status = "error"
+				if job.Video.Status != "restricted" && job.Video.Status != "partial" {
+					job.Video.Status = "error"
+				}
 				job.Video.ErrorMsg = err.Error()
 				runtime.EventsEmit(a.ctx, "video_error", job.Video)
 				time.Sleep(2 * time.Second)

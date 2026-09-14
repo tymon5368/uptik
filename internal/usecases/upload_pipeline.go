@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,8 +81,12 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 		uploadErr := platform.UploadVideo(ctx, b, item, uc.logFn)
 		if uploadErr != nil {
 			uc.Log("error", fmt.Sprintf("❌ Upload failed on %s: %v", platform.DisplayName(), uploadErr))
+			chStatus := "error"
+			if errors.Is(uploadErr, domain.ErrContentRestricted) {
+				chStatus = "restricted"
+			}
 			item.Channels[ch] = domain.ChannelStatus{
-				Status:   "error",
+				Status:   chStatus,
 				ErrorMsg: uploadErr.Error(),
 			}
 			failedChannels = append(failedChannels, ch)
@@ -128,7 +133,40 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 		item.Status = "partial"
 		item.UploadedAt = time.Now().Format("15:04:05")
 		errMsg := fmt.Sprintf("Succeeded on %s, failed on: %s", strings.Join(successfulChannels, ", "), strings.Join(failedChannels, ", "))
+		for _, st := range item.Channels {
+			if st.Status == "restricted" {
+				if qErr := uc.SafeQuarantine(*item); qErr != nil {
+					item.Status = "error"
+					errMsg = fmt.Sprintf("Succeeded on %s, but quarantine failed for restricted video: %v", strings.Join(successfulChannels, ", "), qErr)
+					_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateFailed, errMsg)
+					return fmt.Errorf("%s", errMsg)
+				}
+				break
+			}
+		}
 		_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStatePartial, errMsg)
+		return fmt.Errorf("%s", errMsg)
+	}
+
+	// Check if video was restricted on channels without success -> quarantine to prevent repeated pickup
+	isRestricted := false
+	for _, st := range item.Channels {
+		if st.Status == "restricted" {
+			isRestricted = true
+			break
+		}
+	}
+
+	if isRestricted && len(successfulChannels) == 0 {
+		if err := uc.SafeQuarantine(*item); err != nil {
+			item.Status = "error"
+			errMsg := fmt.Sprintf("Content restricted on %s, but quarantine failed: %v", strings.Join(failedChannels, ", "), err)
+			_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateFailed, errMsg)
+			return fmt.Errorf("%s", errMsg)
+		}
+		item.Status = "restricted"
+		errMsg := fmt.Sprintf("Quarantined: content restricted on %s", strings.Join(failedChannels, ", "))
+		_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateFailed, errMsg)
 		return fmt.Errorf("%s", errMsg)
 	}
 
@@ -152,5 +190,56 @@ func (uc *UploadPipelineUseCase) SafeArchive(video domain.VideoItem) error {
 		return err
 	}
 	uc.Log("success", fmt.Sprintf("📁 Video safely archived to: uploaded/%s", video.Filename))
+	return nil
+}
+
+// SafeQuarantine moves a restricted video to restricted/ subfolder atomically to prevent repeated failures
+func (uc *UploadPipelineUseCase) SafeQuarantine(video domain.VideoItem) error {
+	folder := filepath.Dir(video.FullPath)
+	restrictedDir := filepath.Join(folder, "restricted")
+	if err := os.MkdirAll(restrictedDir, 0755); err != nil {
+		uc.Log("warn", fmt.Sprintf("Warning: could not create restricted directory: %v", err))
+		return err
+	}
+
+	ext := filepath.Ext(video.Filename)
+	base := strings.TrimSuffix(video.Filename, ext)
+
+	// Atomic exclusive destination reservation to eliminate TOCTOU race
+	var destFilename string
+	var destPath string
+	for attempt := 0; attempt < 100; attempt++ {
+		if attempt == 0 {
+			destFilename = video.Filename
+		} else {
+			destFilename = fmt.Sprintf("%s_%d_%d%s", base, time.Now().UnixNano(), attempt, ext)
+		}
+		candidate := filepath.Join(restrictedDir, destFilename)
+
+		// Attempt atomic creation with O_CREATE|os.O_EXCL
+		f, err := os.OpenFile(candidate, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+		if err != nil {
+			if os.IsExist(err) {
+				continue
+			}
+			uc.Log("warn", fmt.Sprintf("Warning: failed to reserve destination file %s: %v", candidate, err))
+			return err
+		}
+		_ = f.Close()
+		destPath = candidate
+		break
+	}
+
+	if destPath == "" {
+		return fmt.Errorf("failed to find an available unique destination in %s after 100 attempts", restrictedDir)
+	}
+
+	err := os.Rename(video.FullPath, destPath)
+	if err != nil {
+		_ = os.Remove(destPath) // clean up reserved placeholder on failure
+		uc.Log("warn", fmt.Sprintf("Warning: could not move restricted file: %v", err))
+		return err
+	}
+	uc.Log("warn", fmt.Sprintf("📁 Video quarantined to: restricted/%s (Ineligible for recommendation)", destFilename))
 	return nil
 }

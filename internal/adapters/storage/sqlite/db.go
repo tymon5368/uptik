@@ -147,6 +147,7 @@ func (s *Storage) Load() (domain.Settings, error) {
 		PublishMode:           domain.PublishModeSchedule,
 		AutoUploadEnabled:     false,
 		MissedSlotPolicy:      "skip",
+		TikTokRestrictedPolicy: domain.TikTokRestrictedPolicySkip,
 		Locale:                "en",
 	}
 
@@ -178,6 +179,9 @@ func (s *Storage) Load() (domain.Settings, error) {
 	if loaded.MissedSlotPolicy == "" {
 		loaded.MissedSlotPolicy = "skip"
 	}
+	if loaded.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && loaded.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
+		loaded.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
+	}
 	if loaded.Locale == "" {
 		loaded.Locale = "en"
 	}
@@ -208,6 +212,9 @@ func (s *Storage) Load() (domain.Settings, error) {
 }
 
 func (s *Storage) Save(st domain.Settings) error {
+	if st.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicySkip && st.TikTokRestrictedPolicy != domain.TikTokRestrictedPolicyPostAnyway {
+		st.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
+	}
 	data, err := json.Marshal(st)
 	if err != nil {
 		return err
