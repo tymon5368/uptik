@@ -1,5 +1,10 @@
 package domain
 
+import "errors"
+
+// ErrContentRestricted is returned when video content is flagged as restricted/unoriginal by the platform
+var ErrContentRestricted = errors.New("content restricted: unoriginal or low-quality content detected")
+
 // ChannelStatus tracks progress and outcome on a specific platform
 type ChannelStatus struct {
 	Status     string `json:"status"` // pending, ready, uploading, scheduled, error, skipped
@@ -34,26 +39,33 @@ type VideoItem struct {
 	UploadedAt     string                   `json:"uploadedAt,omitempty"`
 }
 
+// TikTok restricted content handling policy
+const (
+	TikTokRestrictedPolicySkip       = "skip"
+	TikTokRestrictedPolicyPostAnyway = "post_anyway"
+)
+
 // Settings stores user configuration
 type Settings struct {
-	VideoFolder       string      `json:"videoFolder"`
-	ChromeUserDataDir string      `json:"chromeUserDataDir"`
-	ChromePath        string      `json:"chromePath"`
-	DefaultTag        string      `json:"defaultTag"`
-	GoldenHours           []string    `json:"goldenHours"`
-	ScheduleGoldenHours   []string    `json:"scheduleGoldenHours"`
-	PublishNowGoldenHours []string    `json:"publishNowGoldenHours"`
-	MaxDays               int         `json:"maxDays"`
-	Headless          bool        `json:"headless"`
-	CdpPort           int         `json:"cdpPort"`
-	EnabledChannels   []string    `json:"enabledChannels"`
-	AutoStart         bool        `json:"autoStart"`
-	CloseToTray       bool        `json:"closeToTray"`
-	StartHidden       bool        `json:"startHidden"`
-	PublishMode       PublishMode `json:"publishMode"`
-	AutoUploadEnabled bool        `json:"autoUploadEnabled"`
-	MissedSlotPolicy  string      `json:"missedSlotPolicy"` // "skip" or "run_immediate"
-	Locale            string      `json:"locale"`           // "en", "zh", "de", "ja", "ko", "fr", "es", "it", "nl", "pl", "pt", "ar", "vi"
+	VideoFolder            string      `json:"videoFolder"`
+	ChromeUserDataDir      string      `json:"chromeUserDataDir"`
+	ChromePath             string      `json:"chromePath"`
+	DefaultTag             string      `json:"defaultTag"`
+	GoldenHours            []string    `json:"goldenHours"`
+	ScheduleGoldenHours    []string    `json:"scheduleGoldenHours"`
+	PublishNowGoldenHours  []string    `json:"publishNowGoldenHours"`
+	MaxDays                int         `json:"maxDays"`
+	Headless               bool        `json:"headless"`
+	CdpPort                int         `json:"cdpPort"`
+	EnabledChannels        []string    `json:"enabledChannels"`
+	AutoStart              bool        `json:"autoStart"`
+	CloseToTray            bool        `json:"closeToTray"`
+	StartHidden            bool        `json:"startHidden"`
+	PublishMode            PublishMode `json:"publishMode"`
+	AutoUploadEnabled      bool        `json:"autoUploadEnabled"`
+	MissedSlotPolicy       string      `json:"missedSlotPolicy"`       // "skip" or "run_immediate"
+	TikTokRestrictedPolicy string      `json:"tiktokRestrictedPolicy"` // "skip" (quarantine to restricted/) or "post_anyway"
+	Locale                 string      `json:"locale"`                 // "en", "zh", "de", "ja", "ko", "fr", "es", "it", "nl", "pl", "pt", "ar", "vi"
 }
 
 // HistoryRecord represents an archived successful schedule entry

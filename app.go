@@ -67,7 +67,8 @@ func NewAppWithDBPath(dbPath string) *App {
 	}
 
 	reg := platforms.NewRegistry()
-	reg.Register(tiktok.NewTikTokUploader())
+	tiktokUploader := tiktok.NewTikTokUploader()
+	reg.Register(tiktokUploader)
 	reg.Register(youtube.NewYouTubeUploader())
 	reg.Register(facebook.NewFacebookUploader())
 
@@ -118,6 +119,14 @@ func NewAppWithDBPath(dbPath string) *App {
 		autostartMgr:    autostartMgr,
 		isWindowVisible: true,
 	}
+	tiktokUploader.SetPolicyProvider(func() string {
+		app.settingsMu.Lock()
+		defer app.settingsMu.Unlock()
+		if app.settings.TikTokRestrictedPolicy != "" {
+			return app.settings.TikTokRestrictedPolicy
+		}
+		return domain.TikTokRestrictedPolicySkip
+	})
 	app.startVideoStreamServer()
 	return app
 }

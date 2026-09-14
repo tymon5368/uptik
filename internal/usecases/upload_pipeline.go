@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,8 +81,12 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 		uploadErr := platform.UploadVideo(ctx, b, item, uc.logFn)
 		if uploadErr != nil {
 			uc.Log("error", fmt.Sprintf("❌ Upload failed on %s: %v", platform.DisplayName(), uploadErr))
+			chStatus := "error"
+			if errors.Is(uploadErr, domain.ErrContentRestricted) {
+				chStatus = "restricted"
+			}
 			item.Channels[ch] = domain.ChannelStatus{
-				Status:   "error",
+				Status:   chStatus,
 				ErrorMsg: uploadErr.Error(),
 			}
 			failedChannels = append(failedChannels, ch)
@@ -132,6 +137,23 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 		return fmt.Errorf("%s", errMsg)
 	}
 
+	// Check if video was restricted on channels without success -> quarantine to prevent repeated pickup
+	isRestricted := false
+	for _, st := range item.Channels {
+		if st.Status == "restricted" {
+			isRestricted = true
+			break
+		}
+	}
+
+	if isRestricted && len(successfulChannels) == 0 {
+		item.Status = "restricted"
+		_ = uc.SafeQuarantine(*item)
+		errMsg := fmt.Sprintf("Quarantined: content restricted on %s", strings.Join(failedChannels, ", "))
+		_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateFailed, errMsg)
+		return fmt.Errorf("%s", errMsg)
+	}
+
 	// Total failure
 	item.Status = "error"
 	errMsg := fmt.Sprintf("Failed on all channels: %s", strings.Join(failedChannels, ", "))
@@ -152,5 +174,21 @@ func (uc *UploadPipelineUseCase) SafeArchive(video domain.VideoItem) error {
 		return err
 	}
 	uc.Log("success", fmt.Sprintf("📁 Video safely archived to: uploaded/%s", video.Filename))
+	return nil
+}
+
+// SafeQuarantine moves a restricted video to restricted/ subfolder atomically to prevent repeated failures
+func (uc *UploadPipelineUseCase) SafeQuarantine(video domain.VideoItem) error {
+	folder := filepath.Dir(video.FullPath)
+	restrictedDir := filepath.Join(folder, "restricted")
+	_ = os.MkdirAll(restrictedDir, 0755)
+
+	destPath := filepath.Join(restrictedDir, video.Filename)
+	err := os.Rename(video.FullPath, destPath)
+	if err != nil {
+		uc.Log("warn", fmt.Sprintf("Warning: could not move restricted file: %v", err))
+		return err
+	}
+	uc.Log("warn", fmt.Sprintf("📁 Video quarantined to: restricted/%s (Ineligible for recommendation)", video.Filename))
 	return nil
 }

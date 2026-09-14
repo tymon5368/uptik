@@ -74,6 +74,7 @@ export namespace domain {
 	    publishMode: string;
 	    autoUploadEnabled: boolean;
 	    missedSlotPolicy: string;
+	    tiktokRestrictedPolicy?: string;
 	    locale: string;
 	
 	    static createFrom(source: any = {}) {
@@ -99,6 +100,7 @@ export namespace domain {
 	        this.publishMode = source["publishMode"];
 	        this.autoUploadEnabled = source["autoUploadEnabled"];
 	        this.missedSlotPolicy = source["missedSlotPolicy"];
+	        this.tiktokRestrictedPolicy = source["tiktokRestrictedPolicy"];
 	        this.locale = source["locale"];
 	    }
 	}

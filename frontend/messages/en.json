@@ -219,5 +219,11 @@
   "queue_btn_play_tooltip": "Preview this video",
   "player_dialog_title": "Video Player",
   "player_open_external": "Open in System Player",
-  "player_unsupported": "Browser does not support this video format"
+  "player_unsupported": "Browser does not support this video format",
+  "settings_tiktok_restricted_title": "TikTok Restricted Content Policy",
+  "settings_tiktok_restricted_desc": "Action when TikTok Studio flags video as restricted (Unoriginal, low quality, QR code)",
+  "settings_tiktok_restricted_skip": "Skip & Quarantine (Recommended)",
+  "settings_tiktok_restricted_skip_desc": "Aborts upload to protect channel reputation, moves video to restricted/ subfolder, and continues next video.",
+  "settings_tiktok_restricted_post": "Post Anyway (Bypass)",
+  "settings_tiktok_restricted_post_desc": "Dismisses warning popup and proceeds with publishing despite ineligible recommendation status."
 }

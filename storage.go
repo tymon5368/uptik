@@ -38,6 +38,7 @@ func GetDefaultSettings() Settings {
 		PublishMode:           domain.PublishModeSchedule,
 		AutoUploadEnabled:     false,
 		MissedSlotPolicy:      "skip",
+		TikTokRestrictedPolicy: domain.TikTokRestrictedPolicySkip,
 		Locale:                "en",
 	}
 }
@@ -56,6 +57,9 @@ func LoadSettings() Settings {
 	}
 	if s.MissedSlotPolicy == "" {
 		s.MissedSlotPolicy = "skip"
+	}
+	if s.TikTokRestrictedPolicy == "" {
+		s.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
 	}
 	if s.Locale == "" {
 		s.Locale = "en"

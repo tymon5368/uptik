@@ -176,3 +176,19 @@ func TestDomainGetNextScheduledSlot(t *testing.T) {
 	}
 }
 
+func TestDomainTikTokRestrictedPolicy(t *testing.T) {
+	if TikTokRestrictedPolicySkip != "skip" {
+		t.Errorf("expected TikTokRestrictedPolicySkip to be 'skip', got %q", TikTokRestrictedPolicySkip)
+	}
+	if TikTokRestrictedPolicyPostAnyway != "post_anyway" {
+		t.Errorf("expected TikTokRestrictedPolicyPostAnyway to be 'post_anyway', got %q", TikTokRestrictedPolicyPostAnyway)
+	}
+
+	st := Settings{
+		TikTokRestrictedPolicy: TikTokRestrictedPolicySkip,
+	}
+	if st.TikTokRestrictedPolicy != "skip" {
+		t.Errorf("expected policy to be 'skip', got %q", st.TikTokRestrictedPolicy)
+	}
+}
+

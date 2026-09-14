@@ -147,6 +147,7 @@ func (s *Storage) Load() (domain.Settings, error) {
 		PublishMode:           domain.PublishModeSchedule,
 		AutoUploadEnabled:     false,
 		MissedSlotPolicy:      "skip",
+		TikTokRestrictedPolicy: domain.TikTokRestrictedPolicySkip,
 		Locale:                "en",
 	}
 
@@ -177,6 +178,9 @@ func (s *Storage) Load() (domain.Settings, error) {
 	}
 	if loaded.MissedSlotPolicy == "" {
 		loaded.MissedSlotPolicy = "skip"
+	}
+	if loaded.TikTokRestrictedPolicy == "" {
+		loaded.TikTokRestrictedPolicy = domain.TikTokRestrictedPolicySkip
 	}
 	if loaded.Locale == "" {
 		loaded.Locale = "en"

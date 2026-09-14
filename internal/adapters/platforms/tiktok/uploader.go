@@ -15,10 +15,67 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 )
 
-type TikTokUploader struct{}
+type TikTokUploader struct {
+	policyProvider func() string
+}
 
 func NewTikTokUploader() *TikTokUploader {
 	return &TikTokUploader{}
+}
+
+func (p *TikTokUploader) SetPolicyProvider(provider func() string) {
+	p.policyProvider = provider
+}
+
+func (p *TikTokUploader) GetRestrictedPolicy() string {
+	if p.policyProvider != nil {
+		pol := p.policyProvider()
+		if pol != "" {
+			return pol
+		}
+	}
+	return domain.TikTokRestrictedPolicySkip
+}
+
+func (p *TikTokUploader) dismissRestrictedModal(page *rod.Page, log func(level, msg string)) bool {
+	res, err := page.Eval(`() => {
+		const modals = Array.from(document.querySelectorAll('[role="dialog"], .TUXModal, .TUXDialog, .modal-content, [class*="modal"], [class*="dialog"]'));
+		for (const modal of modals) {
+			const txt = (modal.innerText || '').toLowerCase();
+			if (txt.includes('content may be restricted') || 
+			    txt.includes('nội dung có thể bị hạn chế') || 
+			    txt.includes('violation reason') || 
+			    txt.includes('unoriginal, low-quality') ||
+			    txt.includes('unoriginal') ||
+			    txt.includes('không nguyên bản')) {
+				
+				// 1. Try finding close button
+				const closeBtn = modal.querySelector('button[aria-label*="close" i], [class*="close"], [data-e2e*="close"], svg[class*="close"], [class*="modal-close"]') ||
+				                 Array.from(modal.querySelectorAll('button')).find(b => {
+				                 	const t = (b.innerText || '').trim().toLowerCase();
+				                 	return t === '✕' || t === 'x' || t === '' || b.querySelector('svg');
+				                 });
+				if (closeBtn) {
+					closeBtn.focus();
+					closeBtn.click();
+					closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+					return true;
+				}
+
+				// 2. Dispatch Escape key event to modal and document
+				modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+				document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, which: 27, bubbles: true }));
+				return true;
+			}
+		}
+		return false;
+	}`)
+	if err == nil && res != nil && res.Value.Bool() {
+		log("info", "Dismissed TikTok Studio Content Restriction warning modal.")
+		time.Sleep(500 * time.Millisecond)
+		return true
+	}
+	return false
 }
 
 func (p *TikTokUploader) ID() string {
@@ -386,6 +443,41 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			break
 		}
 
+		// Auto dismiss or abort if Content Restriction modal pops up
+		resRestrict, _ := page.Eval(`() => {
+			const modals = Array.from(document.querySelectorAll('[role="dialog"], .TUXModal, .TUXDialog, .modal-content, [class*="modal"], [class*="dialog"]'));
+			for (const modal of modals) {
+				const txt = (modal.innerText || '').toLowerCase();
+				if (txt.includes('content may be restricted') || 
+				    txt.includes('nội dung có thể bị hạn chế') || 
+				    txt.includes('violation reason') || 
+				    txt.includes('unoriginal, low-quality') || 
+				    txt.includes('unoriginal')) {
+					return true;
+				}
+			}
+			return false;
+		}`)
+		if resRestrict != nil && resRestrict.Value.Bool() {
+			policy := p.GetRestrictedPolicy()
+			if policy == domain.TikTokRestrictedPolicySkip {
+				log("warn", "⚠️ TikTok Studio prompted Content Restriction modal during confirmation. Policy is 'skip' -> Aborting.")
+				return domain.ErrContentRestricted
+			}
+			log("info", "Content Restriction modal detected during confirmation. Policy is 'post_anyway', dismissing...")
+			_ = p.dismissRestrictedModal(page, log)
+			time.Sleep(1 * time.Second)
+
+			// Attempt re-click on Post button if it was unblocked
+			_, _ = page.Eval(`() => {
+				const btn = document.querySelector('button[data-e2e="post_video_button"], button[aria-label*="Post" i], button[aria-label*="Schedule" i], button[aria-label*="Đăng" i]');
+				if (btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true') {
+					btn.click();
+				}
+			}`)
+			continue
+		}
+
 		// Auto confirm dialog if prompted (e.g. issues warning or final confirmation)
 		res, _ := page.Eval(`() => {
 			// 1. Scan for any dialog/modal container
@@ -491,6 +583,28 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		}
 
 		time.Sleep(1 * time.Second)
+	}
+
+	// Final Smart Confirmation Check before reporting error
+	if !submitted {
+		pageInfo, err := page.Info()
+		if err == nil && (strings.Contains(pageInfo.URL, "/content") || strings.Contains(pageInfo.URL, "/manage")) {
+			log("info", "Smart Confirmation: detected TikTok Studio /content redirect after timeout.")
+			submitted = true
+		} else {
+			finalCheck, _ := page.Eval(`() => {
+				const txt = (document.body.innerText || '').toLowerCase();
+				return txt.includes('your video has been published') || 
+				       txt.includes('has been uploaded') || 
+				       txt.includes('manage your posts') || 
+				       txt.includes('quản lý bài đăng') || 
+				       txt.includes('đã được đăng');
+			}`)
+			if finalCheck != nil && finalCheck.Value.Bool() {
+				log("info", "Smart Confirmation: detected post completion text on page after timeout.")
+				submitted = true
+			}
+		}
 	}
 
 	if !submitted {
@@ -641,25 +755,52 @@ func (p *TikTokUploader) waitForVideoUpload(ctx context.Context, page *rod.Page,
 }
 
 func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Page, log func(level, msg string)) error {
-	log("info", "⏳ Checking copyright status on TikTok Studio...")
+	log("info", "⏳ Checking copyright and content status on TikTok Studio...")
 	lastLogTime := time.Time{}
 	wasChecking := false
 	consecutiveEvalErrors := 0
 	successfulEvals := 0
 
 	copyrightEvalScript := `() => {
-		const allEls = Array.from(document.querySelectorAll('div, section, p, span, label, [data-e2e*="copyright"]'));
+		const allEls = Array.from(document.querySelectorAll('div, section, p, span, label, [data-e2e*="copyright"], [data-e2e*="check"]'));
 		let isChecking = false;
 		let isComplete = false;
 		let statusText = '';
 		let foundSection = false;
+		let isContentRestricted = false;
+		let restrictedReason = '';
+		let isRestrictedModalOpen = false;
 
+		// 1. Check for modal popup
+		const modals = Array.from(document.querySelectorAll('[role="dialog"], .TUXModal, .TUXDialog, .modal-content, [class*="modal"]'));
+		for (const modal of modals) {
+			const txt = (modal.innerText || '').toLowerCase();
+			if (txt.includes('content may be restricted') || 
+			    txt.includes('nội dung có thể bị hạn chế') || 
+			    txt.includes('violation reason') || 
+			    txt.includes('unoriginal, low-quality') || 
+			    txt.includes('unoriginal')) {
+				isRestrictedModalOpen = true;
+				isContentRestricted = true;
+				restrictedReason = (modal.innerText || '').slice(0, 150);
+				break;
+			}
+		}
+
+		// 2. Scan checks sections on page
 		for (const el of allEls) {
 			const txt = (el.innerText || '').toLowerCase();
-			if (!txt.includes('copyright') && !txt.includes('bản quyền')) continue;
+			if (!txt.includes('copyright') && !txt.includes('bản quyền') && !txt.includes('content check') && !txt.includes('kiểm tra nội dung')) continue;
 			if ((el.innerText || '').length > 600) continue;
 
 			foundSection = true;
+
+			// Check for restricted indicators
+			if ((txt.includes('content check') || txt.includes('kiểm tra nội dung')) && 
+			    (txt.includes('content may be restricted') || txt.includes('nội dung có thể bị hạn chế') || txt.includes('restricted') || txt.includes('vi phạm'))) {
+				isContentRestricted = true;
+				if (!restrictedReason) restrictedReason = (el.innerText || '').trim();
+			}
 
 			const hasSpinner = el.querySelector(
 				'[class*="loading"], [class*="spinner"], [class*="circle-loading"], svg[class*="spin"], [class*="TUXLoading"]'
@@ -723,11 +864,14 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			foundSection: foundSection,
 			isChecking: isChecking,
 			isComplete: isComplete,
-			statusText: statusText
+			statusText: statusText,
+			isContentRestricted: isContentRestricted,
+			isRestrictedModalOpen: isRestrictedModalOpen,
+			restrictedReason: restrictedReason
 		};
 	}`
 
-	// Wait 3 seconds to allow TikTok Studio to initiate copyright check after upload
+	// Wait 3 seconds to allow TikTok Studio to initiate copyright and content check after upload
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -758,11 +902,14 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			isChecking := res.Value.Get("isChecking").Bool()
 			isComplete := res.Value.Get("isComplete").Bool()
 			statusText := res.Value.Get("statusText").String()
+			isContentRestricted := res.Value.Get("isContentRestricted").Bool()
+			isRestrictedModalOpen := res.Value.Get("isRestrictedModalOpen").Bool()
+			restrictedReason := res.Value.Get("restrictedReason").String()
 
 			if isChecking {
 				wasChecking = true
 				if time.Since(lastLogTime) >= 5*time.Second {
-					msg := "⏳ Copyright check in progress, waiting for TikTok Studio to finish..."
+					msg := "⏳ Copyright & Content checks in progress, waiting for TikTok Studio to finish..."
 					if statusText != "" && len(statusText) < 80 {
 						msg = fmt.Sprintf("⏳ Copyright check in progress: %s...", statusText)
 					}
@@ -773,8 +920,25 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 				continue
 			}
 
+			// Handle Content Restriction
+			if isContentRestricted || isRestrictedModalOpen {
+				policy := p.GetRestrictedPolicy()
+				if policy == domain.TikTokRestrictedPolicySkip {
+					log("warn", fmt.Sprintf("⚠️ TikTok Studio Content Check flagged: Video may be restricted (Unoriginal/Low quality: %s). Policy is 'skip' -> Aborting to protect channel.", restrictedReason))
+					return domain.ErrContentRestricted
+				}
+
+				// Policy is post_anyway
+				log("warn", "⚠️ TikTok Studio Content Check flagged: Video may be restricted, but policy is 'post_anyway'. Dismissing warning modal to continue...")
+				if isRestrictedModalOpen {
+					_ = p.dismissRestrictedModal(page, log)
+					time.Sleep(1 * time.Second)
+				}
+				return nil
+			}
+
 			if isComplete {
-				log("success", "✅ Copyright check completed! (No issues detected)")
+				log("success", "✅ Copyright and content checks completed! (No issues detected)")
 				return nil
 			}
 

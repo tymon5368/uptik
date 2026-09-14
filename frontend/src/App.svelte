@@ -110,6 +110,7 @@
     publishMode: 'schedule',
     autoUploadEnabled: false,
     missedSlotPolicy: 'skip',
+    tiktokRestrictedPolicy: 'skip',
     locale: 'en'
   });
 
@@ -250,6 +251,7 @@
           publishMode: (s.publishMode === 'publish_now' ? 'publish_now' : 'schedule'),
           autoUploadEnabled: s.autoUploadEnabled ?? false,
           missedSlotPolicy: s.missedSlotPolicy || 'skip',
+          tiktokRestrictedPolicy: (s.tiktokRestrictedPolicy === 'post_anyway' ? 'post_anyway' : 'skip'),
           locale: s.locale || 'en'
         };
         if (s.locale) {
@@ -2259,7 +2261,75 @@
               </div>
             </div>
 
-            <!-- CARD 5: TIME SLOTS MANAGER -->
+            <!-- CARD 5: TIKTOK RESTRICTED CONTENT POLICY -->
+            <div class="bg-[#181818] border border-neutral-800 rounded-xl p-5 space-y-4 shadow-sm">
+              <div class="border-b border-neutral-800/80 pb-3 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-neutral-800/80 border border-neutral-700/60 flex items-center justify-center text-amber-400">
+                    <ShieldCheck class="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">{m.settings_tiktok_restricted_title()}</h3>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">{m.settings_tiktok_restricted_desc()}</p>
+                  </div>
+                </div>
+                <span class="text-[10px] font-mono text-neutral-300 bg-neutral-900 px-2.5 py-1 rounded-md border border-neutral-700">
+                  {settings.tiktokRestrictedPolicy === 'post_anyway' ? m.settings_tiktok_restricted_post() : m.settings_tiktok_restricted_skip()}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <!-- Option 1: Skip & Quarantine (Recommended) -->
+                <label class="flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer transition-all {settings.tiktokRestrictedPolicy !== 'post_anyway' ? 'bg-neutral-800/90 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50' : 'bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'}">
+                  <input
+                    type="radio"
+                    name="tiktokRestrictedPolicy"
+                    value="skip"
+                    checked={settings.tiktokRestrictedPolicy !== 'post_anyway'}
+                    onchange={async () => {
+                      settings.tiktokRestrictedPolicy = 'skip';
+                      await handleSaveSettings();
+                    }}
+                    class="mt-1 text-emerald-500 focus:ring-0"
+                  />
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <ShieldCheck class="w-4 h-4 text-emerald-400" />
+                      <span class="text-xs font-bold text-white">{m.settings_tiktok_restricted_skip()}</span>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 leading-relaxed">
+                      {m.settings_tiktok_restricted_skip_desc()}
+                    </p>
+                  </div>
+                </label>
+
+                <!-- Option 2: Post Anyway (Bypass) -->
+                <label class="flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer transition-all {settings.tiktokRestrictedPolicy === 'post_anyway' ? 'bg-neutral-800/90 border-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/50' : 'bg-neutral-900/50 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'}">
+                  <input
+                    type="radio"
+                    name="tiktokRestrictedPolicy"
+                    value="post_anyway"
+                    checked={settings.tiktokRestrictedPolicy === 'post_anyway'}
+                    onchange={async () => {
+                      settings.tiktokRestrictedPolicy = 'post_anyway';
+                      await handleSaveSettings();
+                    }}
+                    class="mt-1 text-amber-500 focus:ring-0"
+                  />
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <Zap class="w-4 h-4 text-amber-400" />
+                      <span class="text-xs font-bold text-white">{m.settings_tiktok_restricted_post()}</span>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 leading-relaxed">
+                      {m.settings_tiktok_restricted_post_desc()}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- CARD 6: TIME SLOTS MANAGER -->
             <div class="bg-[#181818] border border-neutral-800 rounded-xl p-5 space-y-4 shadow-sm">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-800/80 pb-3 gap-2">
                 <div class="flex items-center gap-2.5">
