@@ -136,7 +136,10 @@ func (uc *UploadPipelineUseCase) ProcessJob(ctx context.Context, b *rod.Browser,
 		for _, st := range item.Channels {
 			if st.Status == "restricted" {
 				if qErr := uc.SafeQuarantine(*item); qErr != nil {
-					uc.Log("warn", fmt.Sprintf("Warning: could not quarantine restricted file on partial success: %v", qErr))
+					item.Status = "error"
+					errMsg = fmt.Sprintf("Succeeded on %s, but quarantine failed for restricted video: %v", strings.Join(successfulChannels, ", "), qErr)
+					_ = uc.jobQueue.MarkState(ctx, job.ID, ports.JobStateFailed, errMsg)
+					return fmt.Errorf("%s", errMsg)
 				}
 				break
 			}
@@ -199,19 +202,41 @@ func (uc *UploadPipelineUseCase) SafeQuarantine(video domain.VideoItem) error {
 		return err
 	}
 
-	destFilename := video.Filename
-	destPath := filepath.Join(restrictedDir, destFilename)
+	ext := filepath.Ext(video.Filename)
+	base := strings.TrimSuffix(video.Filename, ext)
 
-	// Collision guard: if file already exists in restricted/, append timestamp to avoid overwriting
-	if _, err := os.Stat(destPath); err == nil {
-		ext := filepath.Ext(video.Filename)
-		base := strings.TrimSuffix(video.Filename, ext)
-		destFilename = fmt.Sprintf("%s_%d%s", base, time.Now().UnixNano(), ext)
-		destPath = filepath.Join(restrictedDir, destFilename)
+	// Atomic exclusive destination reservation to eliminate TOCTOU race
+	var destFilename string
+	var destPath string
+	for attempt := 0; attempt < 100; attempt++ {
+		if attempt == 0 {
+			destFilename = video.Filename
+		} else {
+			destFilename = fmt.Sprintf("%s_%d_%d%s", base, time.Now().UnixNano(), attempt, ext)
+		}
+		candidate := filepath.Join(restrictedDir, destFilename)
+
+		// Attempt atomic creation with O_CREATE|os.O_EXCL
+		f, err := os.OpenFile(candidate, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+		if err != nil {
+			if os.IsExist(err) {
+				continue
+			}
+			uc.Log("warn", fmt.Sprintf("Warning: failed to reserve destination file %s: %v", candidate, err))
+			return err
+		}
+		_ = f.Close()
+		destPath = candidate
+		break
+	}
+
+	if destPath == "" {
+		return fmt.Errorf("failed to find an available unique destination in %s after 100 attempts", restrictedDir)
 	}
 
 	err := os.Rename(video.FullPath, destPath)
 	if err != nil {
+		_ = os.Remove(destPath) // clean up reserved placeholder on failure
 		uc.Log("warn", fmt.Sprintf("Warning: could not move restricted file: %v", err))
 		return err
 	}

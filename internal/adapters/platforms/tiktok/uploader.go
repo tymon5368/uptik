@@ -563,18 +563,11 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 				if (text.includes('continue to post') || text.includes('copyright') || text.includes('tiếp tục đăng') || text.includes('bản quyền')) {
 					continue;
 				}
-				if (text.includes('manage your posts') || 
-				    text.includes('your video has been published') || 
-				    text.includes('has been uploaded') || 
-				    text.includes('is uploaded') || 
-				    text.includes('scheduled') || 
-				    text.includes('uploaded') || 
-				    text.includes('published') || 
-				    text.includes('quản lý bài đăng') || 
-				    text.includes('đã được đăng') || 
-				    text.includes('đã lên lịch') || 
-				    text.includes('tải lên video khác') || 
-				    text.includes('upload another video')) {
+				if (text.includes('your video has been published') || 
+				    text.includes('video của bạn đã được đăng') || 
+				    text.includes('your video is scheduled') || 
+				    text.includes('your video was scheduled') || 
+				    text.includes('video của bạn đã được lên lịch')) {
 					return true;
 				}
 			}
@@ -598,9 +591,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			finalCheck, _ := page.Eval(`() => {
 				const txt = (document.body.innerText || '').toLowerCase();
 				return txt.includes('your video has been published') || 
-				       txt.includes('manage your posts') || 
-				       txt.includes('quản lý bài đăng') || 
-				       txt.includes('đã được đăng');
+				       txt.includes('video của bạn đã được đăng') || 
+				       txt.includes('your video is scheduled') || 
+				       txt.includes('video của bạn đã được lên lịch');
 			}`)
 			if finalCheck != nil && finalCheck.Value.Bool() {
 				log("info", "Smart Confirmation: detected post completion text on page after timeout.")
