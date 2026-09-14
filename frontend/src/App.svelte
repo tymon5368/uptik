@@ -178,7 +178,7 @@
   let queueViewMode = $state<'grid' | 'list'>('grid');
 
   // Auto-Update State (Level 2 Self-Update)
-  let appVersion = $state<string>('1.2.3');
+  let appVersion = $state<string>('1.2.4');
   let updateInfo = $state<updater.UpdateInfo | null>(null);
   let isCheckingUpdate = $state<boolean>(false);
   let isApplyingUpdate = $state<boolean>(false);
