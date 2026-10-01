@@ -74,7 +74,7 @@ export namespace domain {
 	    publishMode: string;
 	    autoUploadEnabled: boolean;
 	    missedSlotPolicy: string;
-	    tiktokRestrictedPolicy?: string;
+	    tiktokRestrictedPolicy: string;
 	    locale: string;
 	
 	    static createFrom(source: any = {}) {

@@ -165,7 +165,7 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 	log("cdp", fmt.Sprintf("Filling caption and configuring schedule: %04d-%02d-%02d %s:%s", targetYear, targetMonth, targetDay, targetHour, targetMin))
 
 	// Step 5: Fill Caption & Interact with React 18 pickers
-	evalScript := `(title, targetDay, targetMonth, targetHour, targetMin) => {
+	evalScript := `(title, targetYear, targetMonth, targetDay, targetHour, targetMin) => {
 		return new Promise(async (resolve) => {
 			// 1. Caption (Draft.js)
 			const editor = document.querySelector('[contenteditable="true"]');
@@ -185,77 +185,175 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			// 2. Schedule radio
 			const scheduleRadio = document.querySelector('input[type="radio"][value="schedule"]');
 			if (scheduleRadio && !scheduleRadio.checked) scheduleRadio.click();
-			const scheduleLabel = Array.from(document.querySelectorAll('label, [class*="Radio"], span')).find(
-				el => el.textContent && el.textContent.trim() === 'Schedule'
+			const scheduleLabels = Array.from(document.querySelectorAll('label, [class*="Radio"], span')).filter(
+				el => el.textContent && (el.textContent.trim() === 'Schedule' || el.textContent.trim() === 'Lên lịch')
 			);
-			if (scheduleLabel) scheduleLabel.click();
-
-			await new Promise(r => setTimeout(r, 450));
-
-			// 3. Date picker
-			const dateInput = document.querySelector('input[value*="2026-"], input[value*="2025-"], input[value*="2027-"]');
-			if (dateInput) {
-				const container = dateInput.closest('.TUXTextInputCore') || dateInput;
-				container.click();
-				await new Promise(r => setTimeout(r, 400));
-
-				const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-				const targetMonthName = monthNames[targetMonth - 1];
-				let currentMonth = document.querySelector('.month-title')?.innerText?.trim();
-				if (currentMonth && currentMonth !== targetMonthName) {
-					const nextArrow = document.querySelectorAll('.month-header-wrapper .arrow')[1];
-					if (nextArrow) {
-						nextArrow.click();
-						await new Promise(r => setTimeout(r, 450));
-					}
-				}
-
-				const dayCells = Array.from(document.querySelectorAll('.day, .calendar-day, [class*="day-"]'));
-				const targetCell = dayCells.find(el => {
-					const txt = el.innerText?.trim();
-					return txt === String(targetDay) && !el.classList.contains('disabled') && !el.classList.contains('prev-month') && !el.classList.contains('next-month');
-				});
-				if (targetCell) {
-					targetCell.click();
-				}
-				await new Promise(r => setTimeout(r, 450));
+			if (scheduleLabels.length > 0) {
+				scheduleLabels[0].click();
 			}
 
-			// 4. Time picker
-			const timeInput = document.querySelector('input[value*=":"]');
-			if (timeInput) {
-				const timeContainer = timeInput.closest('.TUXTextInputCore') || timeInput;
-				timeContainer.click();
-				await new Promise(r => setTimeout(r, 450));
+			await new Promise(r => setTimeout(r, 400));
 
-				const hourSpan = Array.from(document.querySelectorAll('.time-picker-item, [class*="time-item"], span, li')).find(
-					el => el.innerText && el.innerText.trim() === targetHour
-				);
-				if (hourSpan) {
-					hourSpan.scrollIntoView({ block: 'nearest' });
-					hourSpan.click();
-				}
-				await new Promise(r => setTimeout(r, 300));
-
-				const minSpan = Array.from(document.querySelectorAll('.time-picker-item, [class*="time-item"], span, li')).find(
-					el => el.innerText && el.innerText.trim() === targetMin
-				);
-				if (minSpan) {
-					minSpan.scrollIntoView({ block: 'nearest' });
-					minSpan.click();
-				}
-				await new Promise(r => setTimeout(r, 300));
-
-				document.body.click();
+			// 3. Locate scheduled picker container
+			const picker = document.querySelector('.scheduled-picker');
+			if (!picker) {
+				resolve({ success: false, error: 'Cannot find .scheduled-picker container' });
+				return;
 			}
 
-			resolve(true);
+			const pickerChildren = Array.from(picker.children);
+			const timeBlock = pickerChildren[0];
+			const dateBlock = pickerChildren[pickerChildren.length - 1];
+
+			if (!dateBlock || !timeBlock) {
+				resolve({ success: false, error: 'Cannot find date or time container inside .scheduled-picker' });
+				return;
+			}
+
+			const dateInput = dateBlock.querySelector('input');
+			const timeInput = timeBlock.querySelector('input');
+
+			// 4. Open Date Picker Calendar
+			let calendar = document.querySelector('.calendar-wrapper');
+			if (!calendar) {
+				const clickTarget = dateBlock.querySelector('.TUXInputBox') || dateInput || dateBlock;
+				clickTarget.click();
+				await new Promise(r => setTimeout(r, 350));
+				calendar = document.querySelector('.calendar-wrapper');
+			}
+
+			if (!calendar) {
+				resolve({ success: false, error: 'Cannot open date picker calendar (.calendar-wrapper)' });
+				return;
+			}
+
+			// 5. Navigate Month & Year
+			const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+			const targetMonthName = monthNames[targetMonth - 1];
+
+			for (let m = 0; m < 12; m++) {
+				const monthTitle = document.querySelector('.month-title')?.innerText?.trim();
+				const yearTitle = document.querySelector('.year-title')?.innerText?.trim();
+
+				const monthMatches = monthTitle?.toLowerCase() === targetMonthName.toLowerCase() ||
+				                     monthTitle === String(targetMonth) ||
+				                     monthTitle === String(targetMonth).padStart(2, '0') ||
+				                     monthTitle?.includes(String(targetMonth));
+				const yearMatches = !yearTitle || yearTitle.includes(String(targetYear));
+
+				if (monthMatches && yearMatches) {
+					break;
+				}
+
+				const arrows = document.querySelectorAll('.month-header-wrapper .arrow');
+				const nextArrow = arrows[arrows.length - 1];
+				if (nextArrow) {
+					nextArrow.click();
+					await new Promise(r => setTimeout(r, 300));
+				} else {
+					break;
+				}
+			}
+
+			// 6. Day Selection with React SyntheticEvent + Native MouseEvents
+			const validDays = Array.from(document.querySelectorAll('.calendar-wrapper span.day.valid'));
+			let dayEl = validDays.find(el => el.innerText.trim() === String(targetDay));
+
+			if (!dayEl) {
+				const allDays = Array.from(document.querySelectorAll('.calendar-wrapper [class*="day"]'));
+				dayEl = allDays.find(el => el.innerText.trim() === String(targetDay) && !el.className.includes('disabled') && !el.className.includes('prev-month') && !el.className.includes('next-month'));
+			}
+
+			if (dayEl) {
+				const reactKey = Object.keys(dayEl).find(k => k.startsWith('__reactProps'));
+				const fakeEvent = {
+					bubbles: true,
+					cancelable: true,
+					preventDefault: () => {},
+					stopPropagation: () => {},
+					nativeEvent: {},
+					target: dayEl,
+					currentTarget: dayEl
+				};
+
+				if (reactKey && typeof dayEl[reactKey]?.onClick === 'function') {
+					try {
+						dayEl[reactKey].onClick(fakeEvent);
+					} catch {}
+				}
+
+				dayEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+				dayEl.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+				dayEl.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+			}
+			await new Promise(r => setTimeout(r, 350));
+
+			// Close calendar popup if still open
+			const stillOpenCalendar = document.querySelector('.calendar-wrapper');
+			if (stillOpenCalendar) {
+				const clickTarget = dateBlock.querySelector('.TUXInputBox') || dateInput || dateBlock;
+				clickTarget.click();
+				await new Promise(r => setTimeout(r, 200));
+			}
+
+			// 7. Time Picker: Open dropdown
+			const timeBox = timeBlock.querySelector('.TUXInputBox') || timeInput || timeBlock;
+			timeBox.click();
+			await new Promise(r => setTimeout(r, 300));
+
+			// Select Hour (.tiktok-timepicker-left)
+			const hourEl = Array.from(document.querySelectorAll('.tiktok-timepicker-left')).find(
+				el => el.innerText.trim() === targetHour
+			);
+			if (hourEl) {
+				const key = Object.keys(hourEl).find(k => k.startsWith('__reactProps'));
+				if (key && typeof hourEl[key]?.onClick === 'function') {
+					try { hourEl[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+				}
+				hourEl.click();
+			}
+			await new Promise(r => setTimeout(r, 200));
+
+			// Select Minute (.tiktok-timepicker-right)
+			const minEl = Array.from(document.querySelectorAll('.tiktok-timepicker-right')).find(
+				el => el.innerText.trim() === targetMin
+			);
+			if (minEl) {
+				const key = Object.keys(minEl).find(k => k.startsWith('__reactProps'));
+				if (key && typeof minEl[key]?.onClick === 'function') {
+					try { minEl[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+				}
+				minEl.click();
+			}
+			await new Promise(r => setTimeout(r, 200));
+
+			// Close time dropdown if visible
+			const timeContainer = document.querySelector('.tiktok-timepicker-time-picker-container');
+			if (timeContainer && !timeContainer.classList.contains('tiktok-timepicker-invisible')) {
+				timeBox.click();
+				await new Promise(r => setTimeout(r, 200));
+			}
+
+			resolve({
+				success: true,
+				dateSet: dateInput?.value,
+				timeSet: timeInput?.value
+			});
 		});
 	}`
 
-	_, err = page.Eval(evalScript, item.CustomTitle, targetDay, targetMonth, targetHour, targetMin)
+	res, err := page.Eval(evalScript, item.CustomTitle, targetYear, targetMonth, targetDay, targetHour, targetMin)
 	if err != nil {
 		log("warn", fmt.Sprintf("Form fill warning: %v", err))
+	} else if res != nil {
+		if !res.Value.Get("success").Bool() {
+			errMsg := res.Value.Get("error").String()
+			log("warn", fmt.Sprintf("Schedule configuration warning: %s", errMsg))
+		} else {
+			dateSet := res.Value.Get("dateSet").String()
+			timeSet := res.Value.Get("timeSet").String()
+			log("info", fmt.Sprintf("📅 Schedule set successfully: %s %s", dateSet, timeSet))
+		}
 	}
 
 	// Dismiss warning modal if any
@@ -293,18 +391,86 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			break
 		}
 
-		// Handle copyright modal if prompted
+		// Handle copyright / checking dialog if prompted
 		res, _ := page.Eval(`() => {
+			const dialogs = Array.from(document.querySelectorAll('[role="dialog"], .TUXModal, .TUXDialog, .modal-content, [class*="modal"], [class*="dialog"]'));
+			for (const dialog of dialogs) {
+				const dText = (dialog.innerText || '').toLowerCase();
+				if (dText.includes('continue to post') || 
+				    dText.includes('copyright') || 
+				    dText.includes('tiếp tục đăng') || 
+				    dText.includes('bản quyền') || 
+				    dText.includes('incomplete') || 
+				    dText.includes('chưa hoàn tất') || 
+				    dText.includes('post anyway') || 
+				    dText.includes('schedule anyway') ||
+				    dText.includes('checking') ||
+				    dText.includes('kiểm tra') ||
+				    dText.includes('in progress') ||
+				    dText.includes('quá trình')) {
+					
+					const btns = Array.from(dialog.querySelectorAll('button'));
+					const targetBtn = btns.find(b => {
+						const t = (b.innerText || '').trim().toLowerCase();
+						if (t === 'cancel' || t === 'hủy' || t === 'quay lại' || t === 'back') return false;
+						return t === 'post now' || 
+						       t === 'post anyway' || 
+						       t === 'schedule anyway' || 
+						       t === 'continue' || 
+						       t === 'đăng ngay' || 
+						       t === 'vẫn đăng' || 
+						       t === 'tiếp tục đăng' || 
+						       t === 'vẫn lên lịch';
+					}) || btns.find(b => {
+						const t = (b.innerText || '').trim().toLowerCase();
+						if (t.includes('cancel') || t.includes('hủy')) return false;
+						return t.includes('post now') || 
+						       t.includes('post anyway') || 
+						       t.includes('schedule anyway') || 
+						       t.includes('đăng ngay') || 
+						       t.includes('vẫn đăng') || 
+						       t.includes('tiếp tục');
+					});
+
+					if (targetBtn) {
+						const key = Object.keys(targetBtn).find(k => k.startsWith('__reactProps'));
+						if (key && typeof targetBtn[key]?.onClick === 'function') {
+							try { targetBtn[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+						}
+						targetBtn.focus();
+						targetBtn.click();
+						targetBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+						return true;
+					}
+				}
+			}
+
+			// Global fallback
 			const btns = Array.from(document.querySelectorAll('button'));
-			const postAnyway = btns.find(b => b.innerText && (b.innerText.includes('Post anyway') || b.innerText.includes('Schedule anyway') || b.innerText.includes('Vẫn lên lịch')));
-			if (postAnyway) {
-				postAnyway.click();
+			const fallbackBtn = btns.find(b => {
+				const t = (b.innerText || '').trim().toLowerCase();
+				return t === 'post now' || 
+				       t === 'post anyway' || 
+				       t === 'schedule anyway' || 
+				       t === 'vẫn lên lịch' || 
+				       t === 'đăng ngay' || 
+				       t === 'vẫn đăng' ||
+				       t === 'tiếp tục';
+			});
+			if (fallbackBtn) {
+				const key = Object.keys(fallbackBtn).find(k => k.startsWith('__reactProps'));
+				if (key && typeof fallbackBtn[key]?.onClick === 'function') {
+					try { fallbackBtn[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+				}
+				fallbackBtn.focus();
+				fallbackBtn.click();
+				fallbackBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
 				return true;
 			}
 			return false;
 		}`)
-		if res.Value.Bool() {
-			log("info", "Auto-confirmed 'Post anyway' (bypassed copyright check wait).")
+		if res != nil && res.Value.Bool() {
+			log("info", "Auto-confirmed 'Post anyway' (bypassed copyright/content check wait).")
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -321,7 +487,7 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			}
 			return false;
 		}`)
-		if modalRes.Value.Bool() {
+		if modalRes != nil && modalRes.Value.Bool() {
 			log("warn", "Detected blocking modal, dismissed and retrying Schedule click...")
 			time.Sleep(500 * time.Millisecond)
 			_ = scheduleBtn.Click(proto.InputMouseButtonLeft, 1)
@@ -332,9 +498,9 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 			const modal = document.querySelector('.TUXModal, [role="dialog"], .modal-content');
 			if (!modal) return false;
 			const text = modal.innerText || '';
-			return text.includes('Manage your posts') || text.includes('scheduled') || text.includes('uploaded');
+			return text.includes('Manage your posts') || text.includes('scheduled') || text.includes('uploaded') || text.includes('đã được lên lịch') || text.includes('đã được đăng');
 		}`)
-		if successModal.Value.Bool() {
+		if successModal != nil && successModal.Value.Bool() {
 			submitted = true
 			break
 		}

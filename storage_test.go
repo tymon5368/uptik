@@ -50,7 +50,7 @@ func TestAssignScheduleSlots(t *testing.T) {
 		{Filename: "video4.mp4", CustomTitle: "Video 4"},
 	}
 
-	startDate := time.Date(2026, 10, 1, 0, 0, 0, 0, time.Local)
+	startDate := time.Date(2027, 10, 1, 0, 0, 0, 0, time.Local)
 	hours := []string{"11:30", "18:30", "21:30"}
 
 	assigned := AssignScheduleSlots(items, hours, 30, startDate)
@@ -59,16 +59,16 @@ func TestAssignScheduleSlots(t *testing.T) {
 		t.Fatalf("expected 4 assigned items, got %d", len(assigned))
 	}
 
-	if assigned[0].ScheduledDate != "2026-10-01" || assigned[0].ScheduledTime != "11:30" {
+	if assigned[0].ScheduledDate != "2027-10-01" || assigned[0].ScheduledTime != "11:30" {
 		t.Errorf("slot 0 wrong: %s %s", assigned[0].ScheduledDate, assigned[0].ScheduledTime)
 	}
-	if assigned[1].ScheduledDate != "2026-10-01" || assigned[1].ScheduledTime != "18:30" {
+	if assigned[1].ScheduledDate != "2027-10-01" || assigned[1].ScheduledTime != "18:30" {
 		t.Errorf("slot 1 wrong: %s %s", assigned[1].ScheduledDate, assigned[1].ScheduledTime)
 	}
-	if assigned[2].ScheduledDate != "2026-10-01" || assigned[2].ScheduledTime != "21:30" {
+	if assigned[2].ScheduledDate != "2027-10-01" || assigned[2].ScheduledTime != "21:30" {
 		t.Errorf("slot 2 wrong: %s %s", assigned[2].ScheduledDate, assigned[2].ScheduledTime)
 	}
-	if assigned[3].ScheduledDate != "2026-10-02" || assigned[3].ScheduledTime != "11:30" {
+	if assigned[3].ScheduledDate != "2027-10-02" || assigned[3].ScheduledTime != "11:30" {
 		t.Errorf("slot 3 wrong: %s %s", assigned[3].ScheduledDate, assigned[3].ScheduledTime)
 	}
 }
