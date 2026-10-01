@@ -251,25 +251,36 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 
 			const parseYearNumber = (yearText, monthText) => {
 				const combined = (yearText || '') + ' ' + (monthText || '');
-				const m = combined.match(/\b(20\d\d)\b/);
-				return m ? Number(m[1]) : null;
+				const m4 = combined.match(/\b(20\d\d)\b/) || combined.match(/\b(\d{4})\b/);
+				if (m4) return Number(m4[1]);
+				if (yearText) {
+					const m2 = yearText.trim().match(/^\D*(\d{2})\D*$/);
+					if (m2) {
+						const y = Number(m2[1]);
+						return y < 50 ? 2000 + y : 1900 + y;
+					}
+				}
+				return null;
 			};
 
 			let reachedTargetMonth = false;
-			for (let m = 0; m < 24; m++) {
+			for (let m = 0; m <= 25; m++) {
 				const monthTitle = document.querySelector('.month-title')?.innerText?.trim();
-				const yearTitle = document.querySelector('.year-title')?.innerText?.trim();
+				const yearElement = document.querySelector('.year-title');
+				const yearTitle = yearElement?.innerText?.trim();
 
 				const curMonth = parseMonthNumber(monthTitle);
-				const curYear = parseYearNumber(yearTitle, monthTitle) || targetYear;
+				const curYear = parseYearNumber(yearTitle, monthTitle);
 
 				const monthMatches = (curMonth === targetMonth);
-				const yearMatches = (!yearTitle || curYear === targetYear);
+				const yearMatches = yearElement ? (curYear !== null && curYear === targetYear) : (curYear === null || curYear === targetYear);
 
 				if (monthMatches && yearMatches) {
 					reachedTargetMonth = true;
 					break;
 				}
+
+				if (m === 25) break;
 
 				const arrows = document.querySelectorAll('.month-header-wrapper .arrow');
 				if (arrows.length === 0) break;
@@ -278,7 +289,8 @@ func (p *TikTokPlatform) UploadVideo(ctx context.Context, b *rod.Browser, item *
 				const nextArrow = arrows[arrows.length - 1];
 
 				if (curMonth !== null) {
-					const curTotal = curYear * 12 + curMonth;
+					const effectiveYear = curYear !== null ? curYear : targetYear;
+					const curTotal = effectiveYear * 12 + curMonth;
 					const targetTotal = targetYear * 12 + targetMonth;
 					if (targetTotal < curTotal) {
 						prevArrow.click();
