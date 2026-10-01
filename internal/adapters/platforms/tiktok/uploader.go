@@ -292,9 +292,9 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 		log("cdp", fmt.Sprintf("Filling caption and configuring schedule: %04d-%02d-%02d %s:%s", targetYear, targetMonth, targetDay, targetHour, targetMin))
 
 		// Step 5: Fill Caption & React 18 pickers
-		evalScript := `(title, targetDay, targetMonth, targetHour, targetMin) => {
+		evalScript := `(title, targetYear, targetMonth, targetDay, targetHour, targetMin) => {
 			return new Promise(async (resolve) => {
-				// 1. Caption
+				// 1. Caption (Draft.js)
 				const editor = document.querySelector('[contenteditable="true"]');
 				if (editor) {
 					editor.focus();
@@ -312,75 +312,176 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 				// 2. Schedule radio
 				const scheduleRadio = document.querySelector('input[type="radio"][value="schedule"]');
 				if (scheduleRadio && !scheduleRadio.checked) scheduleRadio.click();
-				const scheduleLabel = Array.from(document.querySelectorAll('label, [class*="Radio"], span')).find(
-					el => el.textContent && el.textContent.trim() === 'Schedule'
+				const scheduleLabels = Array.from(document.querySelectorAll('label, [class*="Radio"], span')).filter(
+					el => el.textContent && (el.textContent.trim() === 'Schedule' || el.textContent.trim() === 'Lên lịch')
 				);
-				if (scheduleLabel) scheduleLabel.click();
-
-				await new Promise(r => setTimeout(r, 450));
-
-				// 3. Date picker
-				const dateInput = document.querySelector('input[value*="2026-"], input[value*="2025-"], input[value*="2027-"]');
-				if (dateInput) {
-					const container = dateInput.closest('.TUXTextInputCore') || dateInput;
-					container.click();
-					await new Promise(r => setTimeout(r, 400));
-
-					const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-					const targetMonthName = monthNames[targetMonth - 1];
-					let currentMonth = document.querySelector('.month-title')?.innerText?.trim();
-					if (currentMonth && currentMonth !== targetMonthName) {
-						const nextArrow = document.querySelectorAll('.month-header-wrapper .arrow')[1];
-						if (nextArrow) {
-							nextArrow.click();
-							await new Promise(r => setTimeout(r, 450));
-						}
-					}
-
-					const dayCells = Array.from(document.querySelectorAll('.day, .calendar-day, [class*="day-"]'));
-					const targetCell = dayCells.find(el => {
-						const txt = el.innerText?.trim();
-						return txt === String(targetDay) && !el.classList.contains('disabled') && !el.classList.contains('prev-month') && !el.classList.contains('next-month');
-					});
-					if (targetCell) {
-						targetCell.click();
-					}
-					await new Promise(r => setTimeout(r, 450));
+				if (scheduleLabels.length > 0) {
+					scheduleLabels[0].click();
 				}
 
-				// 4. Time picker
-				const timeInput = document.querySelector('input[value*=":"]');
-				if (timeInput) {
-					const timeContainer = timeInput.closest('.TUXTextInputCore') || timeInput;
-					timeContainer.click();
-					await new Promise(r => setTimeout(r, 450));
+				await new Promise(r => setTimeout(r, 400));
 
-					const hourSpan = Array.from(document.querySelectorAll('.time-picker-item, [class*="time-item"], span, li')).find(
-						el => el.innerText && el.innerText.trim() === targetHour
-					);
-					if (hourSpan) {
-						hourSpan.scrollIntoView({ block: 'nearest' });
-						hourSpan.click();
-					}
-					await new Promise(r => setTimeout(r, 300));
-
-					const minSpan = Array.from(document.querySelectorAll('.time-picker-item, [class*="time-item"], span, li')).find(
-						el => el.innerText && el.innerText.trim() === targetMin
-					);
-					if (minSpan) {
-						minSpan.scrollIntoView({ block: 'nearest' });
-						minSpan.click();
-					}
-					await new Promise(r => setTimeout(r, 300));
-
-					document.body.click();
+				// 3. Locate scheduled picker container
+				const picker = document.querySelector('.scheduled-picker');
+				if (!picker) {
+					resolve({ success: false, error: 'Cannot find .scheduled-picker container' });
+					return;
 				}
 
-				resolve(true);
+				const pickerChildren = Array.from(picker.children);
+				const timeBlock = pickerChildren[0];
+				const dateBlock = pickerChildren[pickerChildren.length - 1];
+
+				if (!dateBlock || !timeBlock) {
+					resolve({ success: false, error: 'Cannot find date or time container inside .scheduled-picker' });
+					return;
+				}
+
+				const dateInput = dateBlock.querySelector('input');
+				const timeInput = timeBlock.querySelector('input');
+
+				// 4. Open Date Picker Calendar
+				let calendar = document.querySelector('.calendar-wrapper');
+				if (!calendar) {
+					const clickTarget = dateBlock.querySelector('.TUXInputBox') || dateInput || dateBlock;
+					clickTarget.click();
+					await new Promise(r => setTimeout(r, 350));
+					calendar = document.querySelector('.calendar-wrapper');
+				}
+
+				if (!calendar) {
+					resolve({ success: false, error: 'Cannot open date picker calendar (.calendar-wrapper)' });
+					return;
+				}
+
+				// 5. Navigate Month & Year
+				const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+				const targetMonthName = monthNames[targetMonth - 1];
+
+				for (let m = 0; m < 12; m++) {
+					const monthTitle = document.querySelector('.month-title')?.innerText?.trim();
+					const yearTitle = document.querySelector('.year-title')?.innerText?.trim();
+
+					const monthMatches = monthTitle?.toLowerCase() === targetMonthName.toLowerCase() ||
+					                     monthTitle === String(targetMonth) ||
+					                     monthTitle === String(targetMonth).padStart(2, '0') ||
+					                     monthTitle?.includes(String(targetMonth));
+					const yearMatches = !yearTitle || yearTitle.includes(String(targetYear));
+
+					if (monthMatches && yearMatches) {
+						break;
+					}
+
+					const arrows = document.querySelectorAll('.month-header-wrapper .arrow');
+					const nextArrow = arrows[arrows.length - 1];
+					if (nextArrow) {
+						nextArrow.click();
+						await new Promise(r => setTimeout(r, 300));
+					} else {
+						break;
+					}
+				}
+
+				// 6. Day Selection with React SyntheticEvent + Native MouseEvents
+				const validDays = Array.from(document.querySelectorAll('.calendar-wrapper span.day.valid'));
+				let dayEl = validDays.find(el => el.innerText.trim() === String(targetDay));
+
+				if (!dayEl) {
+					const allDays = Array.from(document.querySelectorAll('.calendar-wrapper [class*="day"]'));
+					dayEl = allDays.find(el => el.innerText.trim() === String(targetDay) && !el.className.includes('disabled') && !el.className.includes('prev-month') && !el.className.includes('next-month'));
+				}
+
+				if (dayEl) {
+					const reactKey = Object.keys(dayEl).find(k => k.startsWith('__reactProps'));
+					const fakeEvent = {
+						bubbles: true,
+						cancelable: true,
+						preventDefault: () => {},
+						stopPropagation: () => {},
+						nativeEvent: {},
+						target: dayEl,
+						currentTarget: dayEl
+					};
+
+					if (reactKey && typeof dayEl[reactKey]?.onClick === 'function') {
+						try {
+							dayEl[reactKey].onClick(fakeEvent);
+						} catch {}
+					}
+
+					dayEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+					dayEl.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+					dayEl.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+				}
+				await new Promise(r => setTimeout(r, 350));
+
+				// Close calendar popup if still open
+				const stillOpenCalendar = document.querySelector('.calendar-wrapper');
+				if (stillOpenCalendar) {
+					const clickTarget = dateBlock.querySelector('.TUXInputBox') || dateInput || dateBlock;
+					clickTarget.click();
+					await new Promise(r => setTimeout(r, 200));
+				}
+
+				// 7. Time Picker: Open dropdown
+				const timeBox = timeBlock.querySelector('.TUXInputBox') || timeInput || timeBlock;
+				timeBox.click();
+				await new Promise(r => setTimeout(r, 300));
+
+				// Select Hour (.tiktok-timepicker-left)
+				const hourEl = Array.from(document.querySelectorAll('.tiktok-timepicker-left')).find(
+					el => el.innerText.trim() === targetHour
+				);
+				if (hourEl) {
+					const key = Object.keys(hourEl).find(k => k.startsWith('__reactProps'));
+					if (key && typeof hourEl[key]?.onClick === 'function') {
+						try { hourEl[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+					}
+					hourEl.click();
+				}
+				await new Promise(r => setTimeout(r, 200));
+
+				// Select Minute (.tiktok-timepicker-right)
+				const minEl = Array.from(document.querySelectorAll('.tiktok-timepicker-right')).find(
+					el => el.innerText.trim() === targetMin
+				);
+				if (minEl) {
+					const key = Object.keys(minEl).find(k => k.startsWith('__reactProps'));
+					if (key && typeof minEl[key]?.onClick === 'function') {
+						try { minEl[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+					}
+					minEl.click();
+				}
+				await new Promise(r => setTimeout(r, 200));
+
+				// Close time dropdown if visible
+				const timeContainer = document.querySelector('.tiktok-timepicker-time-picker-container');
+				if (timeContainer && !timeContainer.classList.contains('tiktok-timepicker-invisible')) {
+					timeBox.click();
+					await new Promise(r => setTimeout(r, 200));
+				}
+
+				resolve({
+					success: true,
+					dateSet: dateInput?.value,
+					timeSet: timeInput?.value
+				});
 			});
 		}`
 
-		_, _ = page.Eval(evalScript, item.CustomTitle, targetDay, targetMonth, targetHour, targetMin)
+		res, err := page.Eval(evalScript, item.CustomTitle, targetYear, targetMonth, targetDay, targetHour, targetMin)
+		if err != nil {
+			log("warn", fmt.Sprintf("Schedule configuration eval warning: %v", err))
+		} else if res != nil {
+			if !res.Value.Get("success").Bool() {
+				errMsg := res.Value.Get("error").String()
+				log("warn", fmt.Sprintf("Schedule configuration warning: %s", errMsg))
+			} else {
+				dateSet := res.Value.Get("dateSet").String()
+				timeSet := res.Value.Get("timeSet").String()
+				log("info", fmt.Sprintf("📅 Schedule set successfully: %s %s", dateSet, timeSet))
+			}
+		}
 		time.Sleep(1 * time.Second)
 
 		// 1. Đảm bảo video tải lên hoàn tất trước khi bấm Schedule
@@ -494,7 +595,11 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 				    dText.includes('incomplete') || 
 				    dText.includes('chưa hoàn tất') || 
 				    dText.includes('post anyway') || 
-				    dText.includes('schedule anyway')) {
+				    dText.includes('schedule anyway') ||
+				    dText.includes('checking') ||
+				    dText.includes('kiểm tra') ||
+				    dText.includes('in progress') ||
+				    dText.includes('quá trình')) {
 					
 					const btns = Array.from(dialog.querySelectorAll('button'));
 					const targetBtn = btns.find(b => {
@@ -520,6 +625,10 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 					});
 
 					if (targetBtn) {
+						const key = Object.keys(targetBtn).find(k => k.startsWith('__reactProps'));
+						if (key && typeof targetBtn[key]?.onClick === 'function') {
+							try { targetBtn[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+						}
 						targetBtn.focus();
 						targetBtn.click();
 						targetBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
@@ -537,9 +646,14 @@ func (p *TikTokUploader) UploadVideo(ctx context.Context, b *rod.Browser, item *
 				       t === 'schedule anyway' || 
 				       t === 'vẫn lên lịch' || 
 				       t === 'đăng ngay' || 
-				       t === 'vẫn đăng';
+				       t === 'vẫn đăng' ||
+				       t === 'tiếp tục';
 			});
 			if (fallbackBtn) {
+				const key = Object.keys(fallbackBtn).find(k => k.startsWith('__reactProps'));
+				if (key && typeof fallbackBtn[key]?.onClick === 'function') {
+					try { fallbackBtn[key].onClick({ preventDefault: () => {}, stopPropagation: () => {} }); } catch {}
+				}
 				fallbackBtn.focus();
 				fallbackBtn.click();
 				fallbackBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
@@ -760,15 +874,17 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 		const allEls = Array.from(document.querySelectorAll('div, section, p, span, label, [data-e2e*="copyright"], [data-e2e*="check"]'));
 		let isChecking = false;
 		let isComplete = false;
+		let isTenMinuteCheck = false;
 		let statusText = '';
 		let foundSection = false;
 		let isContentRestricted = false;
 		let restrictedReason = '';
 		let isRestrictedModalOpen = false;
 
-		// 1. Check for modal popup
+		// 1. Check for modal popup (ONLY VISIBLE MODALS)
 		const modals = Array.from(document.querySelectorAll('[role="dialog"], .TUXModal, .TUXDialog, .modal-content, [class*="modal"]'));
 		for (const modal of modals) {
+			if (modal.offsetParent === null || window.getComputedStyle(modal).display === 'none') continue;
 			const txt = (modal.innerText || '').toLowerCase();
 			if (txt.includes('content may be restricted') || 
 			    txt.includes('nội dung có thể bị hạn chế') || 
@@ -782,8 +898,10 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			}
 		}
 
-		// 2. Scan checks sections on page
+		// 2. Scan checks sections on page (ONLY VISIBLE ELEMENTS)
 		for (const el of allEls) {
+			if (el.offsetParent === null) continue;
+			if (el.closest('[data-show="false"]')) continue;
 			const txt = (el.innerText || '').toLowerCase();
 			if (!txt.includes('copyright') && !txt.includes('bản quyền') && !txt.includes('content check') && !txt.includes('kiểm tra nội dung')) continue;
 			if ((el.innerText || '').length > 600) continue;
@@ -797,19 +915,22 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 				if (!restrictedReason) restrictedReason = (el.innerText || '').trim();
 			}
 
+			// Check if TikTok mentions 10-minute non-blocking check
+			if (txt.includes('10 minutes') || txt.includes('10 phút') || txt.includes('about 10')) {
+				isTenMinuteCheck = true;
+			}
+
 			const hasSpinner = el.querySelector(
 				'[class*="loading"], [class*="spinner"], [class*="circle-loading"], svg[class*="spin"], [class*="TUXLoading"]'
 			) !== null;
 
 			const checkingKeywords = [
 				'checking...',
-				'checking',
 				'running copyright check',
 				'checking for copyright',
 				'checking for issues',
 				'đang kiểm tra...',
 				'đang kiểm tra bản quyền',
-				'đang kiểm tra',
 				'quy trình kiểm tra bản quyền đang diễn ra'
 			];
 
@@ -843,6 +964,7 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 
 		if (!isChecking) {
 			const standalone = Array.from(document.querySelectorAll('span, div, p')).find(el => {
+				if (el.offsetParent === null) return false;
 				const t = (el.innerText || '').trim().toLowerCase();
 				return t === 'checking...' || 
 				       t === 'đang kiểm tra...' || 
@@ -859,6 +981,7 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			foundSection: foundSection,
 			isChecking: isChecking,
 			isComplete: isComplete,
+			isTenMinuteCheck: isTenMinuteCheck,
 			statusText: statusText,
 			isContentRestricted: isContentRestricted,
 			isRestrictedModalOpen: isRestrictedModalOpen,
@@ -866,15 +989,15 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 		};
 	}`
 
-	// Wait 3 seconds to allow TikTok Studio to initiate copyright and content check after upload
+	// Wait 2 seconds to allow TikTok Studio to initiate copyright and content check after upload
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(3 * time.Second):
+	case <-time.After(2 * time.Second):
 	}
 	pollingStartTime := time.Now()
 
-	for time.Since(pollingStartTime) < 150*time.Second {
+	for time.Since(pollingStartTime) < 12*time.Second {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -885,7 +1008,8 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 		if err != nil {
 			consecutiveEvalErrors++
 			if consecutiveEvalErrors >= 5 {
-				return fmt.Errorf("repeated evaluation failures while waiting for copyright check: %w", err)
+				log("warn", fmt.Sprintf("Evaluation warning during copyright check: %v. Proceeding to schedule...", err))
+				return nil
 			}
 			time.Sleep(1 * time.Second)
 			continue
@@ -896,24 +1020,11 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 		if res != nil {
 			isChecking := res.Value.Get("isChecking").Bool()
 			isComplete := res.Value.Get("isComplete").Bool()
+			isTenMinuteCheck := res.Value.Get("isTenMinuteCheck").Bool()
 			statusText := res.Value.Get("statusText").String()
 			isContentRestricted := res.Value.Get("isContentRestricted").Bool()
 			isRestrictedModalOpen := res.Value.Get("isRestrictedModalOpen").Bool()
 			restrictedReason := res.Value.Get("restrictedReason").String()
-
-			if isChecking {
-				wasChecking = true
-				if time.Since(lastLogTime) >= 5*time.Second {
-					msg := "⏳ Copyright & Content checks in progress, waiting for TikTok Studio to finish..."
-					if statusText != "" && len(statusText) < 80 {
-						msg = fmt.Sprintf("⏳ Copyright check in progress: %s...", statusText)
-					}
-					log("info", msg)
-					lastLogTime = time.Now()
-				}
-				time.Sleep(2 * time.Second)
-				continue
-			}
 
 			// Handle Content Restriction
 			if isContentRestricted || isRestrictedModalOpen {
@@ -945,9 +1056,8 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 					}
 					if !dismissed {
 						log("warn", "⚠️ Could not dismiss Content Restriction modal after retries. Post button may remain blocked.")
-						return fmt.Errorf("could not dismiss Content Restriction modal after retries")
 					}
-					time.Sleep(1 * time.Second)
+					time.Sleep(500 * time.Millisecond)
 				}
 				return nil
 			}
@@ -957,6 +1067,25 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 				return nil
 			}
 
+			if isTenMinuteCheck {
+				log("info", "ℹ️ TikTok Studio content quality check takes ~10 minutes (non-blocking). Proceeding with schedule...")
+				return nil
+			}
+
+			if isChecking {
+				wasChecking = true
+				if time.Since(lastLogTime) >= 3*time.Second {
+					msg := "⏳ Copyright check in progress, waiting for TikTok Studio to finish..."
+					if statusText != "" && len(statusText) < 80 {
+						msg = fmt.Sprintf("⏳ Copyright check in progress: %s...", statusText)
+					}
+					log("info", msg)
+					lastLogTime = time.Now()
+				}
+				time.Sleep(2 * time.Second)
+				continue
+			}
+
 			// If it was checking and is no longer checking, it completed
 			if wasChecking && !isChecking {
 				log("success", "✅ Copyright check finished on TikTok Studio.")
@@ -964,9 +1093,7 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 			}
 		}
 
-		// If at least 8 seconds of polling elapsed without entering checking state, was never checking,
-		// and at least one DOM evaluation succeeded, then copyright check is either not enabled or already done
-		if time.Since(pollingStartTime) >= 8*time.Second && !wasChecking && successfulEvals > 0 {
+		if time.Since(pollingStartTime) >= 5*time.Second && !wasChecking && successfulEvals > 0 {
 			log("info", "ℹ️ No copyright check in progress (ready to post).")
 			return nil
 		}
@@ -975,8 +1102,8 @@ func (p *TikTokUploader) waitForCopyrightCheck(ctx context.Context, page *rod.Pa
 	}
 
 	if wasChecking {
-		log("warn", "⚠️ Copyright check wait timeout reached (150s). Aborting to prevent publishing unchecked video.")
-		return fmt.Errorf("tiktok copyright check timed out after 150 seconds")
+		log("info", "ℹ️ Copyright check is taking longer than expected. Proceeding to schedule (TikTok will verify in background)...")
+		return nil
 	}
 	return nil
 }

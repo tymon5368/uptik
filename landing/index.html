@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UpTik — Omnichannel Video Auto-Scheduler & Desktop Studio</title>
+  <meta name="description" content="Free, open-source desktop auto-scheduler for TikTok Studio, YouTube Shorts, and Meta Reels using Chrome CDP browser automation. Zero API fees.">
+  <meta name="keywords" content="tiktok scheduler, video automation, open source scheduler, youtube shorts scheduler, reels auto post, buffer alternative, hootsuite alternative, chrome cdp">
+  <link rel="canonical" href="https://uptik.trantrongtri.com/">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="assets/uptik-appicon-1024.png">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://uptik.trantrongtri.com/">
+  <meta property="og:title" content="UpTik — Omnichannel Video Auto-Scheduler & Desktop Studio">
+  <meta property="og:description" content="Stop paying $40/mo for SaaS queues. Schedule & auto-publish short-form videos to TikTok, Reels, and Shorts directly from your desktop.">
+  <meta property="og:image" content="https://uptik.trantrongtri.com/assets/uptik-brand-horizontal.jpg">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://uptik.trantrongtri.com/">
+  <meta property="twitter:title" content="UpTik — Omnichannel Video Auto-Scheduler & Desktop Studio">
+  <meta property="twitter:description" content="Stop paying $40/mo for SaaS queues. Schedule & auto-publish short-form videos to TikTok, Reels, and Shorts directly from your desktop.">
+  <meta property="twitter:image" content="https://uptik.trantrongtri.com/assets/uptik-brand-horizontal.jpg">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              900: '#4c1d95',
+            },
+            dark: {
+              bg: '#0a0d14',
+              card: '#111726',
+              border: '#1e293b',
+              hover: '#1e293b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0a0d14;
+      color: #e2e8f0;
+    }
+    .glow-purple {
+      background: radial-gradient(circle at 50% 20%, rgba(124, 58, 237, 0.18) 0%, rgba(10, 13, 20, 0) 70%);
+    }
+    .grid-bg {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="font-sans antialiased text-slate-300 selection:bg-brand-600 selection:text-white">
+
+  <!-- Glow Background -->
+  <div class="fixed inset-0 glow-purple pointer-events-none z-0"></div>
+  <div class="fixed inset-0 grid-bg pointer-events-none z-0 opacity-80"></div>
+
+  <!-- Navigation -->
+  <header class="relative z-50 sticky top-0 backdrop-blur-md bg-dark-bg/80 border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-3 group">
+        <img src="assets/uptik-logo-mark-transparent-1024.png" alt="UpTik Logo" class="w-8 h-8 rounded-lg shadow-md group-hover:scale-105 transition-transform">
+        <span class="text-xl font-bold tracking-tight text-white">UpTik</span>
+        <span class="text-xs px-2 py-0.5 rounded-full font-mono bg-brand-500/20 text-brand-300 border border-brand-500/30">v1.0 FOSS</span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+        <a href="#features" class="hover:text-white transition-colors">Features</a>
+        <a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a>
+        <a href="#comparison" class="hover:text-white transition-colors">Comparison</a>
+        <a href="#download" class="hover:text-white transition-colors">Download</a>
+        <a href="#faq" class="hover:text-white transition-colors">FAQ</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/tymon5368/uptik" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 rounded-lg transition-all shadow-sm hover:border-slate-600">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>Star on GitHub</span>
+        </a>
+        <a href="#download" class="hidden sm:inline-flex items-center gap-2 px-4 py-1.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-lg transition-all shadow-lg shadow-brand-600/30">
+          <span>Get UpTik</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="relative z-10 pt-20 pb-28 overflow-hidden">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      
+      <!-- Launch Pill -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-xs font-medium text-slate-300 mb-8 shadow-inner">
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span>Zero-API Omnichannel Desktop Studio • 100% Free & Open Source</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight sm:leading-none mb-6">
+        Auto-Schedule Videos Across <br class="hidden sm:block" />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-purple-300 to-indigo-300">TikTok, Reels & Shorts</span>
+      </h1>
+
+      <!-- Subheadline -->
+      <p class="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10">
+        Stop paying $40/month for SaaS scheduling limits. UpTik is a high-performance native desktop studio that automates publishing using Chrome DevTools browser automation — running 100% locally with zero API restrictions.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+        <a href="#download" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 text-base font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-xl shadow-brand-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Download Free for Desktop</span>
+        </a>
+        <a href="https://github.com/tymon5368/uptik" target="_blank" rel="noopener" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 text-base font-semibold text-slate-200 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>Explore Source Code</span>
+        </a>
+      </div>
+
+      <!-- Quick Install Terminal Command -->
+      <div class="max-w-xl mx-auto mb-16">
+        <div class="relative flex items-center justify-between px-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl font-mono text-xs sm:text-sm text-slate-300 shadow-inner group">
+          <div class="flex items-center gap-2 overflow-x-auto select-all">
+            <span class="text-brand-400 font-bold">$</span>
+            <span id="install-cmd" class="truncate">curl -fsSL https://raw.githubusercontent.com/tymon5368/uptik/main/scripts/install.sh | bash</span>
+          </div>
+          <button id="copy-btn" onclick="copyInstallCmd()" class="ml-3 p-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-md transition-colors" title="Copy command">
+            <svg id="copy-icon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span id="copied-toast" class="hidden text-xs text-emerald-400 font-medium">Copied!</span>
+          </button>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">One-liner for macOS and Linux. Windows installers available below.</p>
+      </div>
+
+      <!-- App Interface Mockup Preview -->
+      <div class="relative mx-auto rounded-2xl p-2 bg-gradient-to-b from-slate-700/40 via-slate-800/20 to-transparent border border-slate-800/80 shadow-2xl shadow-brand-900/20">
+        <div class="rounded-xl overflow-hidden border border-slate-800 bg-dark-bg">
+          <img src="assets/uptik.png" alt="UpTik Desktop Studio Interface" class="w-full h-auto object-cover rounded-xl" loading="eager">
+        </div>
+      </div>
+
+      <!-- Featured & Launchpad Badges -->
+      <div class="mt-14 pt-8 border-t border-slate-800/60 flex flex-wrap items-center justify-center gap-6 sm:gap-8">
+        <span class="text-xs uppercase tracking-widest text-slate-500 font-semibold w-full block text-center mb-1">Featured & Scheduled On</span>
+        
+        <!-- Product Hunt -->
+        <a href="https://www.producthunt.com/products/uptik-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-uptik-2" target="_blank" rel="noopener noreferrer" class="transition-transform hover:scale-105 inline-block">
+          <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1249026&theme=dark" alt="UpTik - Omnichannel Video Auto-Scheduler &amp; Desktop Studio | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
+        </a>
+
+        <!-- StartupBase -->
+        <a href="https://startupbase.io/products/uptik?utm_source=startupbase&utm_medium=badge&utm_campaign=launch-badge-dark" target="_blank" rel="noopener noreferrer" class="transition-transform hover:scale-105 inline-block">
+          <img src="https://statics.startupbase.io/site/badges/launched-on-sb-dark.svg" alt="Launched on StartupBase" height="54" style="height:54px;width:auto;" />
+        </a>
+
+        <!-- Uneed -->
+        <a href="https://www.uneed.best/tool/uptik" target="_blank" rel="noopener noreferrer" class="transition-transform hover:scale-105 inline-block">
+          <img src="https://www.uneed.best/EMBED2.png" alt="Featured on Uneed" height="54" style="height:54px;width:auto;" />
+        </a>
+
+        <!-- Fazier -->
+        <a href="https://fazier.com" target="_blank" rel="noopener noreferrer" class="transition-transform hover:scale-105 inline-block">
+          <img src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=dark" width="120" height="54" alt="Launched on Fazier" style="height:54px;width:auto;" />
+        </a>
+
+        <!-- AlternativeTo -->
+        <a href="https://alternativeto.net/software/uptik/about/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-sky-500 text-sm font-medium text-slate-200 transition-all hover:scale-105 shadow-md">
+          <div class="w-6 h-6 rounded-md bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">AT</div>
+          <div class="text-left leading-tight">
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">Listed On</div>
+            <div class="text-xs font-bold text-white">AlternativeTo</div>
+          </div>
+        </a>
+
+        <!-- LibHunt -->
+        <a href="https://www.libhunt.com/r/uptik" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-amber-500 text-sm font-medium text-slate-200 transition-all hover:scale-105 shadow-md">
+          <div class="w-6 h-6 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">LH</div>
+          <div class="text-left leading-tight">
+            <div class="text-[10px] text-slate-400 uppercase font-semibold">Tracked On</div>
+            <div class="text-xs font-bold text-white">LibHunt</div>
+          </div>
+        </a>
+
+        <!-- FoundrList -->
+        <a href="https://www.foundrlist.com/product/uptik?utm_source=badge&amp;utm_medium=embed" target="_blank" rel="noopener noreferrer" class="transition-transform hover:scale-105 inline-block">
+          <img src="https://www.foundrlist.com/api/badge/uptik" alt="Featured on FoundrList" width="150" height="48" style="height:48px;width:auto;" />
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Key Metrics / Highlights Strip -->
+  <section class="relative z-10 border-y border-slate-800/80 bg-slate-900/40 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white mb-1 font-mono">3 Peak Slots</div>
+          <div class="text-xs sm:text-sm text-slate-400">Golden Hour Engagement Algorithm</div>
+        </div>
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white mb-1 font-mono">$0 / Forever</div>
+          <div class="text-xs sm:text-sm text-slate-400">Zero Monthly Fees or Subscriptions</div>
+        </div>
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white mb-1 font-mono">Zero APIs</div>
+          <div class="text-xs sm:text-sm text-slate-400">Chrome DevTools CDP Web Driver</div>
+        </div>
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white mb-1 font-mono">100% Local</div>
+          <div class="text-xs sm:text-sm text-slate-400">Crash-Resilient SQLite Outbox</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Features Bento Grid -->
+  <section id="features" class="relative z-10 py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Architected For Creators</h2>
+        <p class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Everything You Need To Scale Short-Form Content</p>
+        <p class="text-base text-slate-400 mt-4">Built with Go, Wails v2, and Svelte 5 for blazing desktop speed and rock-solid privacy.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Card 1 -->
+        <div class="p-8 rounded-2xl bg-dark-card border border-dark-border hover:border-slate-700 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Omnichannel Golden Hours</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Automatically schedules your video queue into verified peak viral windows: <strong>11:30 AM</strong>, <strong>6:30 PM</strong>, and <strong>9:30 PM</strong> across a rolling 30-day horizon with real-time Collision Guard.
+          </p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="p-8 rounded-2xl bg-dark-card border border-dark-border hover:border-slate-700 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Zero-API Browser Automation</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Interacts directly with creator interfaces via Chrome DevTools Protocol (CDP) powered by Go-Rod. Reuses your existing browser cookies and logins—no complex enterprise API approval required.
+          </p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="p-8 rounded-2xl bg-dark-card border border-dark-border hover:border-slate-700 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Anti-Ban Circuit Breaker</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Continuous DOM inspection detects roadblocks (captchas, identity checkpoints, rate limits, HTTP 429). The queue trips immediately to protect creator accounts from automated bans.
+          </p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="p-8 rounded-2xl bg-dark-card border border-dark-border hover:border-slate-700 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Crash-Resilient SQLite Outbox</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Pure Go, zero-CGO SQLite queue in WAL mode. Even if your operating system abruptly restarts or crashes mid-render, UpTik automatically self-heals unfinished jobs back to pending.
+          </p>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="p-8 rounded-2xl bg-dark-card border border-dark-border hover:border-slate-700 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Absolute Local Privacy</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Your videos, metadata, schedule history, and login cookies never leave your machine. No cloud analytics telemetry, no remote servers, and no 3rd-party intermediaries.
+          </p>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="p-8 rounded-2xl bg-dark-card border border-dark-border hover:border-slate-700 transition-all group">
+          <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-3">Rich-Text Editor Emulation</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">
+            Native hardware-level keyboard dispatch bypasses tricky Draft.js and Lexical content-editable wrappers used by TikTok and Meta without triggering anti-bot validation flags.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="relative z-10 py-24 border-t border-slate-800/80 bg-slate-900/30">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Seamless Workflow</h2>
+        <p class="text-3xl sm:text-4xl font-bold text-white tracking-tight">From Folder To Omnichannel in 3 Clicks</p>
+      </div>
+
+      <div class="space-y-8">
+        <!-- Step 1 -->
+        <div class="flex flex-col md:flex-row items-start gap-6 p-6 rounded-2xl bg-dark-card border border-dark-border">
+          <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-brand-600/20 text-brand-300 font-bold font-mono text-xl flex items-center justify-center border border-brand-500/30">
+            01
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white mb-2">Drop Videos & Set Captions</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Drag your processed MP4 or MOV files directly into UpTik Desktop Studio. Assign title templates, hashtags, and privacy preferences once for all target platforms.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="flex flex-col md:flex-row items-start gap-6 p-6 rounded-2xl bg-dark-card border border-dark-border">
+          <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-brand-600/20 text-brand-300 font-bold font-mono text-xl flex items-center justify-center border border-brand-500/30">
+            02
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white mb-2">Golden Hour Time Allocation</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              Hit Auto-Schedule. UpTik scans SQLite history and distributes your videos across peak daily engagement windows (11:30, 18:30, 21:30) with guaranteed zero collision.
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="flex flex-col md:flex-row items-start gap-6 p-6 rounded-2xl bg-dark-card border border-dark-border">
+          <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-brand-600/20 text-brand-300 font-bold font-mono text-xl flex items-center justify-center border border-brand-500/30">
+            03
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white mb-2">Hands-Free Background Execution</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              When the time arrives, UpTik launches Chrome CDP in the background, attaches to your profile, inputs your text, uploads the file, and confirms the schedule.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table Section -->
+  <section id="comparison" class="relative z-10 py-24">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Honest Comparison</h2>
+        <p class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Why Creators Choose UpTik Over SaaS</p>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-dark-card">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 border-b border-slate-800">
+            <tr>
+              <th scope="col" class="px-6 py-4">Feature</th>
+              <th scope="col" class="px-6 py-4 text-brand-400 font-bold text-base">UpTik</th>
+              <th scope="col" class="px-6 py-4">Buffer</th>
+              <th scope="col" class="px-6 py-4">Hootsuite</th>
+              <th scope="col" class="px-6 py-4">Metricool</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 font-medium">
+            <tr>
+              <td class="px-6 py-4 text-white font-semibold">Monthly Price</td>
+              <td class="px-6 py-4 text-emerald-400 font-bold">$0 (Free Forever)</td>
+              <td class="px-6 py-4 text-slate-400">$6 - $120 / mo</td>
+              <td class="px-6 py-4 text-slate-400">$99+ / mo</td>
+              <td class="px-6 py-4 text-slate-400">$22 - $139 / mo</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-4 text-white font-semibold">API Requirements</td>
+              <td class="px-6 py-4 text-emerald-400 font-bold">Zero (Chrome CDP)</td>
+              <td class="px-6 py-4 text-slate-400">Strict Enterprise APIs</td>
+              <td class="px-6 py-4 text-slate-400">Strict Enterprise APIs</td>
+              <td class="px-6 py-4 text-slate-400">Restricted Official APIs</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-4 text-white font-semibold">Data Privacy</td>
+              <td class="px-6 py-4 text-emerald-400 font-bold">100% Local (SQLite)</td>
+              <td class="px-6 py-4 text-slate-400">Cloud Hosted</td>
+              <td class="px-6 py-4 text-slate-400">Cloud Hosted</td>
+              <td class="px-6 py-4 text-slate-400">Cloud Hosted</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-4 text-white font-semibold">Scheduled Video Limits</td>
+              <td class="px-6 py-4 text-emerald-400 font-bold">Unlimited</td>
+              <td class="px-6 py-4 text-slate-400">Tier-gated (10 to 100)</td>
+              <td class="px-6 py-4 text-slate-400">Capped by Plan</td>
+              <td class="px-6 py-4 text-slate-400">Capped by Plan</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-4 text-white font-semibold">License</td>
+              <td class="px-6 py-4 text-emerald-400 font-bold">Open Source (MIT)</td>
+              <td class="px-6 py-4 text-slate-400">Proprietary</td>
+              <td class="px-6 py-4 text-slate-400">Proprietary</td>
+              <td class="px-6 py-4 text-slate-400">Proprietary</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-4 text-white font-semibold">Anti-Ban Protection</td>
+              <td class="px-6 py-4 text-emerald-400 font-bold">Circuit Breaker Guard</td>
+              <td class="px-6 py-4 text-slate-400">API Error Codes Only</td>
+              <td class="px-6 py-4 text-slate-400">API Error Codes Only</td>
+              <td class="px-6 py-4 text-slate-400">API Error Codes Only</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download & Install Section -->
+  <section id="download" class="relative z-10 py-24 border-t border-slate-800/80 bg-slate-900/40">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto mb-16">
+        <h2 class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Install in 30 Seconds</h2>
+        <p class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Download UpTik For Your OS</p>
+        <p class="text-base text-slate-400 mt-4">Native binaries packaged with zero dependencies.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Linux -->
+        <div class="p-6 rounded-2xl bg-dark-card border border-dark-border flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-lg font-bold text-white">Linux</span>
+              <span class="text-xs px-2.5 py-1 rounded bg-slate-800 font-mono text-slate-300">x86_64</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-6">Installs executable to ~/.local/bin and automatically registers .desktop launcher with app icon.</p>
+            <div class="bg-slate-950 p-3 rounded-lg font-mono text-xs text-slate-300 mb-4 select-all break-all border border-slate-800">
+              curl -fsSL https://raw.githubusercontent.com/tymon5368/uptik/main/scripts/install.sh | bash
+            </div>
+          </div>
+          <a href="https://github.com/tymon5368/uptik/releases/latest" target="_blank" rel="noopener" class="w-full py-2.5 text-center text-sm font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors">
+            View Linux Releases
+          </a>
+        </div>
+
+        <!-- macOS -->
+        <div class="p-6 rounded-2xl bg-dark-card border border-brand-500/40 shadow-lg shadow-brand-900/10 flex flex-col justify-between relative">
+          <div class="absolute -top-3 right-6 px-2.5 py-0.5 rounded-full bg-brand-600 text-[10px] font-bold uppercase text-white tracking-wide">
+            Universal
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-lg font-bold text-white">macOS</span>
+              <span class="text-xs px-2.5 py-1 rounded bg-brand-500/20 font-mono text-brand-300">Apple & Intel</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-6">Native macOS bundle. Automated Gatekeeper quarantine bypass script included in release.</p>
+            <div class="bg-slate-950 p-3 rounded-lg font-mono text-xs text-slate-300 mb-4 select-all break-all border border-slate-800">
+              curl -fsSL https://raw.githubusercontent.com/tymon5368/uptik/main/scripts/install.sh | bash
+            </div>
+          </div>
+          <a href="https://github.com/tymon5368/uptik/releases/latest" target="_blank" rel="noopener" class="w-full py-2.5 text-center text-sm font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl transition-colors">
+            Download macOS (.zip)
+          </a>
+        </div>
+
+        <!-- Windows -->
+        <div class="p-6 rounded-2xl bg-dark-card border border-dark-border flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="text-lg font-bold text-white">Windows</span>
+              <span class="text-xs px-2.5 py-1 rounded bg-slate-800 font-mono text-slate-300">x64 Installer</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-6">Standard Windows setup installer and portable zip archive with integrated Webview2 runtime support.</p>
+            <div class="bg-slate-950 p-3 rounded-lg font-mono text-xs text-slate-300 mb-4 border border-slate-800">
+              uptik-amd64-installer.exe
+            </div>
+          </div>
+          <a href="https://github.com/tymon5368/uptik/releases/latest" target="_blank" rel="noopener" class="w-full py-2.5 text-center text-sm font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors">
+            Download Windows (.exe)
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="relative z-10 py-24">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Questions & Answers</h2>
+        <p class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Frequently Asked Questions</p>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Q1 -->
+        <details class="group p-6 rounded-2xl bg-dark-card border border-dark-border [&_summary::-webkit-details-marker]:hidden cursor-pointer">
+          <summary class="flex items-center justify-between font-semibold text-white">
+            <span>How does UpTik post without official social media APIs?</span>
+            <span class="transition group-open:rotate-180">
+              <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </summary>
+          <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+            UpTik uses the Chrome DevTools Protocol (CDP) through Go-Rod. It acts exactly like a human sitting at your computer: it attaches to your existing browser session, navigates to the creator dashboard, types the captions via native hardware-level input events, and uploads the video.
+          </p>
+        </details>
+
+        <!-- Q2 -->
+        <details class="group p-6 rounded-2xl bg-dark-card border border-dark-border [&_summary::-webkit-details-marker]:hidden cursor-pointer">
+          <summary class="flex items-center justify-between font-semibold text-white">
+            <span>Can my TikTok or Meta accounts get banned?</span>
+            <span class="transition group-open:rotate-180">
+              <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </summary>
+          <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+            UpTik is specifically designed with an anti-ban Circuit Breaker. Unlike sketchy cloud scrapers that trigger IP mismatch bans, UpTik runs from your home residential IP on your actual browser profile. If any captcha or phone verification checkpoint is detected, it immediately halts the queue so you can handle it manually.
+          </p>
+        </details>
+
+        <!-- Q3 -->
+        <details class="group p-6 rounded-2xl bg-dark-card border border-dark-border [&_summary::-webkit-details-marker]:hidden cursor-pointer">
+          <summary class="flex items-center justify-between font-semibold text-white">
+            <span>Where is my account data and video library stored?</span>
+            <span class="transition group-open:rotate-180">
+              <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </summary>
+          <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+            Everything is stored locally on your device in a self-contained SQLite database with Write-Ahead Logging (WAL mode). No video files or cookies are ever transferred to any external server.
+          </p>
+        </details>
+
+        <!-- Q4 -->
+        <details class="group p-6 rounded-2xl bg-dark-card border border-dark-border [&_summary::-webkit-details-marker]:hidden cursor-pointer">
+          <summary class="flex items-center justify-between font-semibold text-white">
+            <span>Is UpTik truly free and open source?</span>
+            <span class="transition group-open:rotate-180">
+              <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </summary>
+          <p class="text-sm text-slate-400 mt-4 leading-relaxed">
+            Yes! UpTik is released under the permissive MIT license. You can inspect the complete source code, compile it yourself with Go and Bun, or contribute improvements directly on GitHub.
+          </p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="relative z-10 border-t border-slate-800/80 bg-slate-950 py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <img src="assets/uptik-logo-mark-transparent-1024.png" alt="UpTik Logo" class="w-6 h-6 rounded">
+        <span class="text-sm font-semibold text-white">UpTik Studio</span>
+        <span class="text-xs text-slate-500">• Released under MIT License</span>
+      </div>
+
+      <div class="flex items-center gap-6 text-xs text-slate-400">
+        <a href="https://github.com/tymon5368/uptik" target="_blank" rel="noopener" class="hover:text-white transition-colors">GitHub</a>
+        <a href="https://github.com/tymon5368/uptik/releases" target="_blank" rel="noopener" class="hover:text-white transition-colors">Releases</a>
+        <a href="https://alternativeto.net/software/uptik/about/" target="_blank" rel="noopener" class="hover:text-white transition-colors">AlternativeTo</a>
+        <a href="https://www.uneed.best/tool/uptik" target="_blank" rel="noopener" class="hover:text-white transition-colors">Uneed</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Interactive Scripts -->
+  <script>
+    function copyInstallCmd() {
+      const text = document.getElementById('install-cmd').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const copyIcon = document.getElementById('copy-icon');
+        const toast = document.getElementById('copied-toast');
+        copyIcon.classList.add('hidden');
+        toast.classList.remove('hidden');
+        setTimeout(() => {
+          copyIcon.classList.remove('hidden');
+          toast.classList.add('hidden');
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

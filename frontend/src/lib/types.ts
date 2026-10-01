@@ -40,7 +40,7 @@ export interface Settings {
   publishMode: 'schedule' | 'publish_now';
   autoUploadEnabled: boolean;
   missedSlotPolicy: string;
-  tiktokRestrictedPolicy?: 'skip' | 'post_anyway';
+  tiktokRestrictedPolicy: 'skip' | 'post_anyway';
   locale: string;
 }
 
